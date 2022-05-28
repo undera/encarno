@@ -1,8 +1,9 @@
-package incarne
+package http
 
 import (
 	"bufio"
 	log "github.com/sirupsen/logrus"
+	"incarne/pkg/core"
 	"io"
 	"net/http"
 	"time"
@@ -13,8 +14,8 @@ type HTTPNib struct {
 	values   map[string][]byte
 }
 
-func (n *HTTPNib) Process(item *InputItem) *OutputItem {
-	outItem := OutputItem{
+func (n *HTTPNib) Punch(item *core.InputItem) *core.OutputItem {
+	outItem := core.OutputItem{
 		StartTime: time.Now(),
 	}
 
@@ -28,7 +29,7 @@ func (n *HTTPNib) Process(item *InputItem) *OutputItem {
 	return &outItem
 }
 
-func (n *HTTPNib) sendRequest(item *InputItem, outItem *OutputItem) *BufferedConn {
+func (n *HTTPNib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
 	item.ReplaceValues(n.values)
 	conn, err := n.connPool.Get(item.Hostname)
 	if err != nil {
@@ -52,8 +53,8 @@ func (n *HTTPNib) sendRequest(item *InputItem, outItem *OutputItem) *BufferedCon
 	return conn
 }
 
-func (n *HTTPNib) readResponse(item *InputItem, conn *BufferedConn, result *OutputItem) {
-	recorder := RecordingReader{
+func (n *HTTPNib) readResponse(item *core.InputItem, conn *BufferedConn, result *core.OutputItem) {
+	recorder := core.RecordingReader{
 		Limit: 1024 * 1024, // TODO: make it configurable
 		R:     conn,
 	}

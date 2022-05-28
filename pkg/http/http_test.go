@@ -1,7 +1,8 @@
-package incarne
+package http
 
 import (
 	log "github.com/sirupsen/logrus"
+	"incarne/pkg/core"
 	"net/http"
 	"regexp"
 	"testing"
@@ -23,58 +24,58 @@ func TestOne(t *testing.T) {
 	}
 
 	type Item struct {
-		inp InputItem
+		inp core.InputItem
 		out string
 	}
 
 	items := []Item{
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "localhost:8000",
 				Payload:  []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "localhost:8000",
 				Payload:  []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "yandex.ru",
 				Payload:  []byte("GET / HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "yandex.ru:80",
 				Payload:  []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
 			},
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "httpbin.org",
 				Payload:  []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
 			},
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "httpbin.org",
 				Payload:  []byte("POST /anything HTTP/1.1\r\nHost:httpbin.org\r\nX-Hdr: ${input}\r\n\r\n"), // "test ${input} while producing 123"
-				RegexOut: map[string]*ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
+				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
 			},
 			out: "1",
 		},
 		{
-			inp: InputItem{
+			inp: core.InputItem{
 				Hostname: "notexistent",
 			},
 		},
 	}
 
 	for _, item := range items {
-		res := nib.Process(&item.inp)
+		res := nib.Punch(&item.inp)
 
 		t.Logf("Status: %d", res.Status)
 
@@ -98,7 +99,7 @@ func TestLoop(t *testing.T) {
 		values:   values,
 	}
 
-	item := InputItem{
+	item := core.InputItem{
 		Hostname: "localhost:8081",
 		Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 	}
@@ -106,7 +107,7 @@ func TestLoop(t *testing.T) {
 	start := time.Now()
 	i := float64(0)
 	for ; i < 10000; i++ {
-		res := nib.Process(&item)
+		res := nib.Punch(&item)
 		if res.Error != nil {
 			t.Errorf("Failed: %v", res.Error)
 			break

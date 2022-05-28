@@ -1,4 +1,4 @@
-package incarne
+package http
 
 import (
 	"bufio"
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net"
 	"net/url"
 	"strings"
@@ -49,8 +50,11 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 
 	select {
 	case conn := <-p.idle[hostname]:
+		_ = conn.SetReadDeadline(time.Now())
 		_, err := conn.Peek(1)
-		if err != nil {
+		if err == io.EOF {
+			log.Debugf("Cannot reuse idle connection: %v", err)
+		} else if err != nil {
 			log.Warningf("Cannot reuse idle connection: %v", err)
 		} else {
 			log.Debugf("Reusing idle connection to %s", hostname)
