@@ -85,8 +85,11 @@ func (r *BufferedConn) Close() error {
 	if !r.Canceled {
 		r.Canceled = true
 	}
-	err := r.Conn.Close()
-	return err
+
+	if r.Err != io.EOF {
+		return r.Conn.Close()
+	}
+	return nil
 }
 
 func (r *BufferedConn) Reset() {

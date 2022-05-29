@@ -90,9 +90,9 @@ func TestOne(t *testing.T) {
 }
 
 func TestLoop(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 
-	values := map[string][]byte{"input": []byte("theinput")}
+	values := map[string][]byte{}
 	nib := Nib{
 		connPool: &ConnPool{
 			idle:           make(map[string]ConnChan),
@@ -109,15 +109,16 @@ func TestLoop(t *testing.T) {
 
 	start := time.Now()
 	i := float64(0)
-	for ; i < 20000; i++ {
+	for ; i < 100000; i++ {
 		res := nib.Punch(&item)
 		if res.Error != nil {
 			t.Errorf("Failed: %v", res.Error)
 			break
 		}
-		t.Logf("Status: %d", res.Status)
+		//t.Logf("Status: %d", res.Status)
 	}
 	elapsed := time.Now().Sub(start)
+	t.Logf("Iterations: %v", i)
 	t.Logf("Elapsed: %v", elapsed)
 	t.Logf("Avg: %v", elapsed.Seconds()/i)
 	t.Logf("Rate: %v", i/elapsed.Seconds())

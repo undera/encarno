@@ -30,7 +30,7 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 }
 
 func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
-	item.ReplaceValues(n.values)
+	item.ReplaceValues(n.values) // TODO: only do it for selected values
 
 	before := time.Now()
 	conn, err := n.connPool.Get(item.Hostname)
