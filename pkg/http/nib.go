@@ -2,22 +2,16 @@ package http
 
 import (
 	"bufio"
-	"context"
-	"errors"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
 type Nib struct {
-	transport *http.Transport
-	values    map[string][]byte
+	connPool *ConnPool
+	values   map[string][]byte
 }
 
 func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
@@ -35,17 +29,22 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 	return &outItem
 }
 
-func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) net.Conn {
+func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
 	item.ReplaceValues(n.values)
 
 	before := time.Now()
-	conn, err := n.getConnection(item.Hostname)
+	conn, err := n.connPool.Get(item.Hostname)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil
 	}
 	connected := time.Now()
 	outItem.ConnectTime = connected.Sub(before)
+
+	if err := conn.SetDeadline(time.Now().Add(n.connPool.Timeout)); err != nil {
+		outItem.EndWithError(err)
+		return nil
+	}
 
 	if write, err := conn.Write(item.Payload); err != nil {
 		outItem.EndWithError(err)
@@ -57,39 +56,9 @@ func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) net.Co
 	return conn
 }
 
-func (n *Nib) getConnection(hostname string) (net.Conn, error) {
-	log.Debugf("Opening new connection to %s", hostname)
-	if !strings.Contains(hostname, "://") {
-		hostname = "http://" + hostname
-	}
-	parsed, err := url.Parse(hostname)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to parse hostname '%s' as URL: %s", hostname, err))
-	}
-
-	host := parsed.Host // TODO: DNS round-robin here via own code
-	if parsed.Scheme == "https" {
-		if !strings.Contains(host, ":") {
-			host = host + ":443"
-		}
-
-		return n.transport.DialTLSContext(context.Background(), "tcp", host)
-	} else {
-		if !strings.Contains(host, ":") {
-			host = host + ":80"
-		}
-
-		return n.transport.DialContext(context.Background(), "tcp", host)
-	}
-}
-
-func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.OutputItem) {
+func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *core.OutputItem) {
 	begin := time.Now()
-	recorder := core.RecordingReader{
-		Limit: 1024 * 1024, // TODO: make it configurable
-		R:     conn,
-	}
-	reader := bufio.NewReader(&recorder)
+	reader := bufio.NewReader(conn)
 	resp, err := http.ReadResponse(reader, nil)
 	if err != nil {
 		result.EndWithError(err)
@@ -97,15 +66,11 @@ func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.Out
 	}
 
 	if len(item.RegexOut) > 0 {
-		recorder.Limit = 0
+		conn.ReadRecordLimit = 0
 	}
 
-	buf := make([]byte, n.transport.ReadBufferSize)
-	for {
-		_, err := resp.Body.Read(buf)
-		if err == io.EOF {
-			break
-		} else if err != nil {
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		if err != nil {
 			result.EndWithError(err)
 			return
 		}
@@ -117,11 +82,17 @@ func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.Out
 	}
 	result.ReadTime = time.Now().Sub(begin)
 
-	result.RespBytesCount = recorder.Len
-	result.RespBytes = recorder.Buffer.Bytes()
+	result.RespBytesCount = conn.ReadLen
+	result.RespBytes = conn.ReadRecorded.Bytes()
 
 	result.ExtractValues(item.RegexOut, n.values)
 
 	result.Status = resp.StatusCode
-	result.FirstByteTime = recorder.FirstRead.Sub(begin)
+	result.FirstByteTime = conn.FirstRead.Sub(begin)
+
+	n.connPool.Return(item.Hostname, conn)
+}
+
+func (n *Nib) readerLoop() {
+
 }

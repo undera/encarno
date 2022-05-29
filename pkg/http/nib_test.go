@@ -91,6 +91,7 @@ func TestOne(t *testing.T) {
 
 func TestLoop(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+
 	values := map[string][]byte{"input": []byte("theinput")}
 	nib := Nib{
 		connPool: &ConnPool{

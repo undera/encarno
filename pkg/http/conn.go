@@ -17,23 +17,23 @@ import (
 )
 
 type BufferedConn struct {
-	net.Conn   // So that most methods are embedded
-	Limit      int
-	Buffer     bytes.Buffer
-	ReadLen    int
-	FirstRead  time.Time
-	Err        error
-	Canceled   bool
-	readChunks chan []byte
-	buf        []byte
+	net.Conn        // So that most methods are embedded
+	ReadRecordLimit int
+	ReadRecorded    bytes.Buffer
+	ReadLen         int
+	FirstRead       time.Time
+	Err             error
+	Canceled        bool
+	readChunks      chan []byte
+	buf             []byte
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
 	conn := BufferedConn{
-		Conn:       c,
-		Limit:      1024 * 1024,
-		buf:        make([]byte, 4096),
-		readChunks: make(chan []byte),
+		Conn:            c,
+		ReadRecordLimit: 1024 * 1024,
+		buf:             make([]byte, 4096),
+		readChunks:      make(chan []byte),
 	}
 	go conn.readLoop()
 	return &conn
@@ -51,8 +51,8 @@ func (r *BufferedConn) readLoop() {
 		r.ReadLen += n
 		log.Debugf("Read %d bytes, %d total: %v", n, r.ReadLen, err)
 
-		if (r.Limit <= 0 || r.ReadLen <= r.Limit) && n > 0 {
-			r.Buffer.Write(r.buf[:n])
+		if (r.ReadRecordLimit <= 0 || r.ReadLen <= r.ReadRecordLimit) && n > 0 {
+			r.ReadRecorded.Write(r.buf[:n])
 		}
 
 		if err != nil {
@@ -88,7 +88,7 @@ func (r *BufferedConn) Close() error {
 
 func (r *BufferedConn) Reset() {
 	r.ReadLen = 0
-	r.Buffer.Truncate(0)
+	r.ReadRecorded.Truncate(0)
 }
 
 type ConnChan = chan *BufferedConn
@@ -163,7 +163,9 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 }
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
-	p.idle[hostname] <- conn
+	if conn.Err == nil {
+		p.idle[hostname] <- conn
+	}
 }
 
 func getTransport(maxConn int, timeout time.Duration) *http.Transport {
