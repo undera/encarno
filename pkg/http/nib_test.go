@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"net/http"
@@ -11,25 +10,6 @@ import (
 )
 
 var hostname = "localhost:8070"
-
-func TestResolver(t *testing.T) {
-	r := NewResolver()
-	host, err := r.ResolveHost(context.Background(), "www.com:80")
-	t.Logf("%s, %v", host, err)
-	host2, err2 := r.ResolveHost(context.Background(), "www.com:80")
-	t.Logf("%s, %v", host2, err2)
-	if host2 == host {
-		t.Error("Should round-robin")
-	}
-
-	host, err = r.ResolveHost(context.Background(), "ipv4.com:80")
-	t.Logf("%s, %v", host, err)
-	host2, err2 = r.ResolveHost(context.Background(), "ipv4.com:80")
-	t.Logf("%s, %v", host, err)
-	if host2 != host {
-		t.Error("Should be just one")
-	}
-}
 
 func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -94,7 +74,7 @@ func TestOne(t *testing.T) {
 	for _, item := range items {
 		res := nib.Punch(&item.inp)
 
-		t.Logf("Status: %d", res.Status)
+		t.Logf("Status: %d %v", res.Status, res.Error)
 
 		if string(values["test1"]) != item.out {
 			t.Errorf("No right value: %s", string(values["test1"]))

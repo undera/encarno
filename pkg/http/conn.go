@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"crypto/tls"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"strings"
@@ -74,6 +75,7 @@ func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, erro
 	ips, found := r.Cache[host]
 	if !found {
 		var err error
+		log.Debugf("Looking up IP for: %s", host)
 		ips, err = r.Resolver.LookupHost(ctx, host)
 		if err != nil {
 			return "", err
@@ -83,6 +85,10 @@ func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, erro
 
 	ip := ips[0]
 	r.Cache[host] = append(ips[1:], ip)
+
+	if strings.Contains(ip, ":") {
+		ip = "[" + ip + "]"
+	}
 
 	return ip + ":" + port, nil
 }

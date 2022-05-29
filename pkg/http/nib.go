@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/url"
 	"strings"
 	"time"
@@ -26,46 +25,39 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 		StartTime: time.Now(),
 	}
 
-	trace := &httptrace.ClientTrace{
-		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
-			fmt.Printf("DNS Info: %+v\n", dnsInfo)
-		},
-		GotConn: func(connInfo httptrace.GotConnInfo) {
-			fmt.Printf("Got Conn: %+v\n", connInfo)
-		},
-	}
-
-	conn := n.sendRequest(item, &outItem, trace)
+	conn := n.sendRequest(item, &outItem)
 	if outItem.Error != nil {
 		return &outItem
 	}
 
 	n.readResponse(item, conn, &outItem)
-	outItem.EndTime = time.Now()
+	outItem.Elapsed = time.Now().Sub(outItem.StartTime)
 	return &outItem
 }
 
-func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem, trace *httptrace.ClientTrace) net.Conn {
+func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) net.Conn {
 	item.ReplaceValues(n.values)
 
-	conn, err := n.getConnection(item.Hostname, trace)
+	before := time.Now()
+	conn, err := n.getConnection(item.Hostname)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil
 	}
-	outItem.ConnectedTime = time.Now()
+	connected := time.Now()
+	outItem.ConnectTime = connected.Sub(before)
 
 	if write, err := conn.Write(item.Payload); err != nil {
 		outItem.EndWithError(err)
 		return nil
 	} else {
 		outItem.SentBytesCount = write
-		outItem.SentTime = time.Now()
+		outItem.SentTime = time.Now().Sub(connected)
 	}
 	return conn
 }
 
-func (n *Nib) getConnection(hostname string, trace *httptrace.ClientTrace) (net.Conn, error) {
+func (n *Nib) getConnection(hostname string) (net.Conn, error) {
 	log.Debugf("Opening new connection to %s", hostname)
 	if !strings.Contains(hostname, "://") {
 		hostname = "http://" + hostname
@@ -75,25 +67,24 @@ func (n *Nib) getConnection(hostname string, trace *httptrace.ClientTrace) (net.
 		return nil, errors.New(fmt.Sprintf("Failed to parse hostname '%s' as URL: %s", hostname, err))
 	}
 
-	ctx := httptrace.WithClientTrace(context.Background(), trace)
-
 	host := parsed.Host // TODO: DNS round-robin here via own code
 	if parsed.Scheme == "https" {
 		if !strings.Contains(host, ":") {
 			host = host + ":443"
 		}
 
-		return n.transport.DialTLSContext(ctx, "tcp", host)
+		return n.transport.DialTLSContext(context.Background(), "tcp", host)
 	} else {
 		if !strings.Contains(host, ":") {
 			host = host + ":80"
 		}
 
-		return n.transport.DialContext(ctx, "tcp", host)
+		return n.transport.DialContext(context.Background(), "tcp", host)
 	}
 }
 
 func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.OutputItem) {
+	begin := time.Now()
 	recorder := core.RecordingReader{
 		Limit: 1024 * 1024, // TODO: make it configurable
 		R:     conn,
@@ -124,6 +115,7 @@ func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.Out
 	if err != nil {
 		log.Warningf("Failed to close response body")
 	}
+	result.ReadTime = time.Now().Sub(begin)
 
 	result.RespBytesCount = recorder.Len
 	result.RespBytes = recorder.Buffer.Bytes()
@@ -131,5 +123,5 @@ func (n *Nib) readResponse(item *core.InputItem, conn net.Conn, result *core.Out
 	result.ExtractValues(item.RegexOut, n.values)
 
 	result.Status = resp.StatusCode
-	result.FirstByteTime = recorder.FirstRead
+	result.FirstByteTime = recorder.FirstRead.Sub(begin)
 }

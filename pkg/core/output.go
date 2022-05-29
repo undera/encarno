@@ -33,11 +33,11 @@ type OutputItem struct {
 	Error          error
 	Status         int
 	StartTime      time.Time
-	ConnectedTime  time.Time
-	SentTime       time.Time
-	FirstByteTime  time.Time
-	ReadTime       time.Time
-	EndTime        time.Time
+	ConnectTime    time.Duration
+	SentTime       time.Duration
+	FirstByteTime  time.Duration
+	ReadTime       time.Duration
+	Elapsed        time.Duration
 }
 
 func (i *OutputItem) EndWithError(err error) *OutputItem {

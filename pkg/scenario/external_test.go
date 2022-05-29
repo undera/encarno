@@ -119,6 +119,6 @@ func (n *DummyNib) Punch(payload []byte) *core.OutputItem {
 	end := time.Now()
 	return &core.OutputItem{
 		StartTime: start,
-		EndTime:   end,
+		Elapsed:   end,
 	}
 }
