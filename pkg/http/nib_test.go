@@ -85,6 +85,7 @@ func TestOne(t *testing.T) {
 }
 
 func TestLoop(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	values := map[string][]byte{"input": []byte("theinput")}
 	nib := Nib{
 		transport: getTransport(100, 1000*time.Second),
@@ -125,18 +126,25 @@ func TestLoopNative(t *testing.T) {
 	t.Logf("Rate: %v", i/elapsed.Seconds())
 }
 
+var client = http.Client{
+	Timeout: 1000 * time.Second,
+	Transport: &http.Transport{
+		IdleConnTimeout: 1000 * time.Second,
+	},
+}
+
 func doreq(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://"+hostname+"/", nil)
 	if err != nil {
 		log.Fatalf("Error Occured. %+v", err)
 	}
 	req.Header.Set("Connection", "close")
-	res, err := http.DefaultClient.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		t.Errorf("Failed: %v", err)
 		return
 	}
 	res.Body.Close()
 	_ = res
-	// t.Logf("Status: %d", res.StatusCode)
+	t.Logf("Status: %d", res.StatusCode)
 }
