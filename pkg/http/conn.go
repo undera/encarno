@@ -1,108 +1,88 @@
 package http
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
-	"errors"
-	"fmt"
-	log "github.com/sirupsen/logrus"
-	"io"
 	"net"
-	"net/url"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
-type BufferedConn struct {
-	r        *bufio.Reader
-	net.Conn // So that most methods are embedded
-}
+func getTransport(maxConn int, timeout time.Duration) *http.Transport {
+	r := NewResolver()
 
-func newBufferedConn(c net.Conn) *BufferedConn {
-	return &BufferedConn{bufio.NewReader(c), c}
-}
-
-func (b BufferedConn) Peek(n int) ([]byte, error) {
-	return b.r.Peek(n)
-}
-
-func (b BufferedConn) Read(p []byte) (int, error) {
-	return b.r.Read(p)
-}
-
-type ConnChan = chan *BufferedConn
-
-type ConnPool struct {
-	idle           map[string]ConnChan
-	MaxConnections int
-	Timeout        time.Duration
-}
-
-func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
-	var ch ConnChan
-	if c, ok := p.idle[hostname]; ok {
-		ch = c
-	} else {
-		ch = make(ConnChan, p.MaxConnections)
-		p.idle[hostname] = ch
+	plainDialer := net.Dialer{
+		Timeout: timeout,
 	}
 
-	select {
-	case conn := <-p.idle[hostname]:
-		_ = conn.SetReadDeadline(time.Now())
-		_, err := conn.Peek(1)
-		if err == io.EOF {
-			log.Debugf("Cannot reuse idle connection: %v", err)
-		} else if err != nil {
-			log.Warningf("Cannot reuse idle connection: %v", err)
-		} else {
-			log.Debugf("Reusing idle connection to %s", hostname)
-			return conn, nil
-		}
-	default:
-
+	tlsDialer := tls.Dialer{
+		NetDialer: &plainDialer,
+		Config: &tls.Config{
+			InsecureSkipVerify: true, // TODO: make configurable
+		},
 	}
-	c, err := p.openConnection(hostname)
-	return newBufferedConn(c), err
+
+	h := &http.Transport{
+		DialContext: func(ctx context.Context, network string, addr string) (conn net.Conn, err error) {
+			resolvedHost, err := r.ResolveHost(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			return plainDialer.DialContext(ctx, network, resolvedHost)
+		},
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			resolvedHost, err := r.ResolveHost(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			return tlsDialer.DialContext(ctx, network, resolvedHost)
+		},
+		MaxIdleConns:    maxConn,
+		MaxConnsPerHost: maxConn,
+		IdleConnTimeout: 10 * timeout, // TODO: is it right to do 10x?
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+	}
+	return h
 }
 
-func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
-	log.Debugf("Opening new connection to %s", hostname)
-	if !strings.Contains(hostname, "://") {
-		hostname = "http://" + hostname
-	}
-	parsed, err := url.Parse(hostname)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to parse hostname '%s' as URL: %s", hostname, err))
-	}
-
-	host := parsed.Host // TODO: DNS round-robin here via own code
-
-	if parsed.Scheme == "https" {
-		if !strings.Contains(host, ":") {
-			host = host + ":443"
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
-		defer cancel() // Ensure cancel is always called
-		conf := &tls.Config{
-			InsecureSkipVerify: true, // TODO: configurable
-
-		}
-		d := tls.Dialer{
-			Config: conf,
-		}
-		return d.DialContext(ctx, "tcp", host)
-	} else {
-		if !strings.Contains(host, ":") {
-			host = host + ":80"
-		}
-
-		return net.DialTimeout("tcp", host, p.Timeout)
+func NewResolver() *RRResolver {
+	return &RRResolver{
+		Resolver: net.Resolver{},
+		Cache:    map[string][]string{},
+		mx:       sync.Mutex{},
 	}
 }
 
-func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
-	p.idle[hostname] <- conn
+type RRResolver struct {
+	Resolver net.Resolver
+	Cache    map[string][]string
+	mx       sync.Mutex
+}
+
+func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, error) {
+	host, port, foundSep := strings.Cut(addr, ":")
+	if !foundSep {
+		panic("The address must constain port: " + addr)
+	}
+
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	ips, found := r.Cache[host]
+	if !found {
+		var err error
+		ips, err = r.Resolver.LookupHost(ctx, host)
+		if err != nil {
+			return "", err
+		}
+		r.Cache[host] = ips
+	}
+
+	ip := ips[0]
+	r.Cache[host] = append(ips[1:], ip)
+
+	return ip + ":" + port, nil
 }

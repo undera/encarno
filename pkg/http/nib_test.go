@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"net/http"
@@ -9,18 +10,34 @@ import (
 	"time"
 )
 
+var hostname = "localhost:8070"
+
+func TestResolver(t *testing.T) {
+	r := NewResolver()
+	host, err := r.ResolveHost(context.Background(), "www.com:80")
+	t.Logf("%s, %v", host, err)
+	host2, err2 := r.ResolveHost(context.Background(), "www.com:80")
+	t.Logf("%s, %v", host2, err2)
+	if host2 == host {
+		t.Error("Should round-robin")
+	}
+
+	host, err = r.ResolveHost(context.Background(), "ipv4.com:80")
+	t.Logf("%s, %v", host, err)
+	host2, err2 = r.ResolveHost(context.Background(), "ipv4.com:80")
+	t.Logf("%s, %v", host, err)
+	if host2 != host {
+		t.Error("Should be just one")
+	}
+}
+
 func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	clients := &ConnPool{
-		idle:           map[string]ConnChan{},
-		MaxConnections: 10,
-		Timeout:        1000 * time.Second,
-	}
 	values := map[string][]byte{"input": []byte("theinput")}
-	nib := HTTPNib{
-		connPool: clients,
-		values:   values,
+	nib := Nib{
+		transport: getTransport(100, 1000*time.Second),
+		values:    values,
 	}
 
 	type Item struct {
@@ -31,13 +48,13 @@ func TestOne(t *testing.T) {
 	items := []Item{
 		{
 			inp: core.InputItem{
-				Hostname: "localhost:8000",
+				Hostname: hostname,
 				Payload:  []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.InputItem{
-				Hostname: "localhost:8000",
+				Hostname: hostname,
 				Payload:  []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
@@ -49,7 +66,7 @@ func TestOne(t *testing.T) {
 		},
 		{
 			inp: core.InputItem{
-				Hostname: "yandex.ru:80",
+				Hostname: "https://yandex.ru",
 				Payload:  []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
 			},
 		},
@@ -83,30 +100,25 @@ func TestOne(t *testing.T) {
 			t.Errorf("No right value: %s", string(values["test1"]))
 		}
 
-		//<-nib.connPool.idle[item.inp.Hostname]
+		//<-nib.transport.idle[item.inp.Hostname]
 	}
 }
 
 func TestLoop(t *testing.T) {
-	clients := &ConnPool{
-		idle:           map[string]ConnChan{},
-		MaxConnections: 100,
-		Timeout:        1000 * time.Second,
-	}
 	values := map[string][]byte{"input": []byte("theinput")}
-	nib := HTTPNib{
-		connPool: clients,
-		values:   values,
+	nib := Nib{
+		transport: getTransport(100, 1000*time.Second),
+		values:    values,
 	}
 
 	item := core.InputItem{
-		Hostname: "localhost:8081",
+		Hostname: hostname,
 		Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 	}
 
 	start := time.Now()
 	i := float64(0)
-	for ; i < 10000; i++ {
+	for ; i < 20000; i++ {
 		res := nib.Punch(&item)
 		if res.Error != nil {
 			t.Errorf("Failed: %v", res.Error)
@@ -123,7 +135,7 @@ func TestLoop(t *testing.T) {
 func TestLoopNative(t *testing.T) {
 	start := time.Now()
 	i := float64(0)
-	for ; i < 10000; i++ {
+	for ; i < 20000; i++ {
 		doreq(t)
 	}
 	elapsed := time.Now().Sub(start)
@@ -134,7 +146,7 @@ func TestLoopNative(t *testing.T) {
 }
 
 func doreq(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://localhost:8081/", nil)
+	req, err := http.NewRequest("GET", "http://"+hostname+"/", nil)
 	if err != nil {
 		log.Fatalf("Error Occured. %+v", err)
 	}
@@ -146,5 +158,5 @@ func doreq(t *testing.T) {
 	}
 	res.Body.Close()
 	_ = res
-	t.Logf("Status: %d", res.StatusCode)
+	// t.Logf("Status: %d", res.StatusCode)
 }

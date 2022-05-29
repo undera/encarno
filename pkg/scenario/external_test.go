@@ -114,11 +114,11 @@ type DummyNib struct {
 }
 
 func (n *DummyNib) Punch(payload []byte) *core.OutputItem {
-	start := time.Now().UnixNano()
+	start := time.Now()
 	log.Infof("Processed payload: %s", payload)
-	end := time.Now().UnixNano()
+	end := time.Now()
 	return &core.OutputItem{
-		Start: start,
-		End:   end,
+		StartTime: start,
+		EndTime:   end,
 	}
 }
