@@ -46,6 +46,7 @@ func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *Buffe
 		return nil
 	}
 
+	log.Debugf("Writing %d bytes into connection", len(item.Payload))
 	if write, err := conn.Write(item.Payload); err != nil {
 		outItem.EndWithError(err)
 		return nil
@@ -89,6 +90,13 @@ func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *cor
 
 	result.Status = resp.StatusCode
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
+
+	if resp.Close {
+		err := conn.Close()
+		if err != nil {
+			log.Warningf("Failed to close connection: %s", err)
+		}
+	}
 
 	n.connPool.Return(item.Hostname, conn)
 }

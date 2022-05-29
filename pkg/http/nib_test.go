@@ -97,7 +97,7 @@ func TestLoop(t *testing.T) {
 		connPool: &ConnPool{
 			idle:           make(map[string]ConnChan),
 			MaxConnections: 100,
-			Timeout:        1 * time.Second,
+			Timeout:        100 * time.Second,
 		},
 		values: values,
 	}
@@ -115,7 +115,7 @@ func TestLoop(t *testing.T) {
 			t.Errorf("Failed: %v", res.Error)
 			break
 		}
-		//t.Logf("Status: %d", res.Status)
+		t.Logf("Status: %d", res.Status)
 	}
 	elapsed := time.Now().Sub(start)
 	t.Logf("Elapsed: %v", elapsed)

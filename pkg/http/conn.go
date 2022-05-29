@@ -60,9 +60,7 @@ func (r *BufferedConn) readLoop() {
 			r.Canceled = true
 		}
 
-		if n > 0 {
-			r.readChunks <- r.buf[:n]
-		}
+		r.readChunks <- r.buf[:n]
 	}
 	log.Debugf("Done reading loop")
 
@@ -73,17 +71,22 @@ func (r *BufferedConn) readLoop() {
 }
 
 func (r *BufferedConn) Read(p []byte) (n int, err error) {
-	select {
-	case buf := <-r.readChunks:
-		return copy(buf, p), nil
-	default:
+	if r.Err != nil {
 		return 0, r.Err
 	}
+
+	buf := <-r.readChunks
+	n = copy(p, buf)
+	return n, nil
 }
 
 func (r *BufferedConn) Close() error {
-	r.Canceled = true
-	return r.Conn.Close()
+	log.Debugf("Closing connection")
+	if !r.Canceled {
+		r.Canceled = true
+	}
+	err := r.Conn.Close()
+	return err
 }
 
 func (r *BufferedConn) Reset() {
@@ -163,11 +166,12 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 }
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
-	if conn.Err == nil {
+	if conn.Err == nil && !conn.Canceled {
 		p.idle[hostname] <- conn
 	}
 }
 
+// TODO: incorporate above
 func getTransport(maxConn int, timeout time.Duration) *http.Transport {
 	r := NewResolver()
 
