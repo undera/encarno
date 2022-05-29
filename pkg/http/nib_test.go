@@ -3,6 +3,7 @@ package http
 import (
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
+	"io"
 	"net/http"
 	"regexp"
 	"testing"
@@ -16,8 +17,12 @@ func TestOne(t *testing.T) {
 
 	values := map[string][]byte{"input": []byte("theinput")}
 	nib := Nib{
-		transport: getTransport(100, 1000*time.Second),
-		values:    values,
+		connPool: &ConnPool{
+			idle:           make(map[string]ConnChan),
+			MaxConnections: 100,
+			Timeout:        1 * time.Second,
+		},
+		values: values,
 	}
 
 	type Item struct {
@@ -88,8 +93,12 @@ func TestLoop(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	values := map[string][]byte{"input": []byte("theinput")}
 	nib := Nib{
-		transport: getTransport(100, 1000*time.Second),
-		values:    values,
+		connPool: &ConnPool{
+			idle:           make(map[string]ConnChan),
+			MaxConnections: 100,
+			Timeout:        1 * time.Second,
+		},
+		values: values,
 	}
 
 	item := core.InputItem{
@@ -138,13 +147,15 @@ func doreq(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Error Occured. %+v", err)
 	}
-	req.Header.Set("Connection", "close")
+	//req.Header.Set("Connection", "close")
 	res, err := client.Do(req)
 	if err != nil {
 		t.Errorf("Failed: %v", err)
 		return
 	}
+	io.ReadAll(res.Body)
 	res.Body.Close()
 	_ = res
 	t.Logf("Status: %d", res.StatusCode)
+	time.Sleep(10 * time.Second)
 }
