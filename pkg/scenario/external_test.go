@@ -21,7 +21,7 @@ func TestExternal(t *testing.T) {
 		Output:     &DummyOutput{},
 		MinWorkers: 0,
 		MaxWorkers: 0,
-		StartTime:  time.Now().UnixNano(),
+		StartTime:  time.Now(),
 		NibMaker: func() core.Nib {
 			nib := DummyNib{}
 			return &nib
@@ -41,9 +41,8 @@ func (d *DummyInput) Generator() core.InputChannel {
 		defer close(ch)
 		for i := 0; i < 100; i++ {
 			log.Infof("Iteration %d", i)
-			inc := 1000 * int64(time.Millisecond)
 			item := &core.InputItem{
-				TimeOffset: int64(i) * inc,
+				TimeOffset: time.Duration(i) * 1000 * time.Millisecond,
 				Label:      "label#" + strconv.Itoa(i%3),
 				Payload:    []byte("data"),
 			}
@@ -119,6 +118,6 @@ func (n *DummyNib) Punch(payload []byte) *core.OutputItem {
 	end := time.Now()
 	return &core.OutputItem{
 		StartTime: start,
-		Elapsed:   end,
+		Elapsed:   end.Sub(start),
 	}
 }

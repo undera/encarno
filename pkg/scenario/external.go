@@ -5,6 +5,7 @@ import (
 	"incarne/pkg/core"
 	"math"
 	"strconv"
+	"time"
 )
 
 // External imlements pre-calculated open workload scenario
@@ -14,7 +15,7 @@ type External struct {
 	Output     core.Output
 	MinWorkers int
 	MaxWorkers int
-	StartTime  int64
+	StartTime  time.Time
 	NibMaker   func() core.Nib
 }
 

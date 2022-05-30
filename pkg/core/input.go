@@ -3,6 +3,7 @@ package core
 import (
 	"regexp"
 	"strconv"
+	"time"
 )
 
 // reading input files
@@ -17,7 +18,7 @@ type Input interface {
 }
 
 type InputItem struct {
-	TimeOffset int64
+	TimeOffset time.Duration
 	Label      string
 	Hostname   string
 	Payload    []byte
@@ -25,6 +26,7 @@ type InputItem struct {
 }
 
 func (i *InputItem) ReplaceValues(values map[string][]byte) {
+	// TODO: only do it for selected values
 	for name, val := range values {
 		re := regexp.MustCompile("\\$\\{" + name + "}")
 		i.Payload = re.ReplaceAll(i.Payload, val)

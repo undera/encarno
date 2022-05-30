@@ -11,7 +11,6 @@ import (
 
 type Nib struct {
 	connPool *ConnPool
-	values   map[string][]byte
 }
 
 func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
@@ -30,8 +29,6 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 }
 
 func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
-	item.ReplaceValues(n.values) // TODO: only do it for selected values
-
 	before := time.Now()
 	conn, err := n.connPool.Get(item.Hostname)
 	if err != nil {
@@ -85,9 +82,7 @@ func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *cor
 
 	result.RespBytesCount = conn.ReadLen
 	result.RespBytes = conn.ReadRecorded.Bytes()
-
-	result.ExtractValues(item.RegexOut, n.values)
-
+	
 	result.Status = resp.StatusCode
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 

@@ -15,10 +15,11 @@ type Worker interface {
 type BasicWorker struct {
 	Name      string
 	Nib       Nib
-	StartTime int64
+	StartTime time.Time
 	Abort     <-chan struct{}
 	Input     InputChannel
 	Output    Output
+	values    map[string][]byte
 }
 
 func (w *BasicWorker) Run() {
@@ -32,8 +33,8 @@ outer:
 			item := <-w.Input
 
 			w.Output.IncWorking()
-			curTime := time.Now().UnixNano()
-			offset := curTime - w.StartTime
+			curTime := time.Now()
+			offset := curTime.Sub(w.StartTime)
 			if offset < item.TimeOffset {
 				delay := item.TimeOffset - offset
 				log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
@@ -43,7 +44,9 @@ outer:
 			}
 
 			w.Output.IncBusy()
+			item.ReplaceValues(w.values)
 			res := w.Nib.Punch(item.Payload)
+			res.ExtractValues(item.RegexOut, w.values)
 			w.Output.Push(res)
 			w.Output.DecBusy()
 			w.Output.DecWorking()
@@ -51,7 +54,7 @@ outer:
 	}
 }
 
-func NewBasicWorker(name string, abort chan struct{}, input InputChannel, output Output, startTime int64, nib Nib) Worker {
+func NewBasicWorker(name string, abort chan struct{}, input InputChannel, output Output, startTime time.Time, nib Nib) Worker {
 	var b Worker
 	b = &BasicWorker{
 		Name:      name,
