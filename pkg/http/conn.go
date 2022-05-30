@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -86,7 +85,7 @@ func (r *BufferedConn) Close() error {
 		r.Canceled = true
 	}
 
-	if r.Err != io.EOF {
+	if r.Err != nil {
 		return r.Conn.Close()
 	}
 	return nil
@@ -103,6 +102,30 @@ type ConnPool struct {
 	idle           map[string]ConnChan
 	MaxConnections int
 	Timeout        time.Duration
+	resolver       *RRResolver
+	plainDialer    net.Dialer
+	tlsDialer      tls.Dialer
+}
+
+func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
+	plainDialer := net.Dialer{
+		Timeout: timeout,
+	}
+
+	pool := &ConnPool{
+		resolver:    NewResolver(),
+		plainDialer: plainDialer,
+		tlsDialer: tls.Dialer{
+			NetDialer: &plainDialer,
+			Config: &tls.Config{
+				InsecureSkipVerify: true, // TODO: make configurable
+			},
+		},
+		idle:           make(map[string]ConnChan),
+		MaxConnections: maxConnections,
+		Timeout:        timeout,
+	}
+	return pool
 }
 
 func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
@@ -134,6 +157,7 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 
 func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 	log.Debugf("Opening new connection to %s", hostname)
+
 	if !strings.Contains(hostname, "://") {
 		hostname = "http://" + hostname
 	}
@@ -142,29 +166,25 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 		return nil, errors.New(fmt.Sprintf("Failed to parse hostname '%s' as URL: %s", hostname, err))
 	}
 
-	host := parsed.Host // TODO: DNS round-robin here via own code
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	defer cancel()
+	host, err := p.resolver.ResolveHost(ctx, parsed.Host)
+	if err != nil {
+		return nil, err
+	}
 
 	if parsed.Scheme == "https" {
-		if !strings.Contains(host, ":") {
+		if !strings.Contains(host, ":") { //FIXME: ipv6 won't work well
 			host = host + ":443"
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
-		defer cancel() // Ensure cancel is always called
-		conf := &tls.Config{
-			InsecureSkipVerify: true, // TODO: configurable
-
-		}
-		d := tls.Dialer{
-			Config: conf,
-		}
-		return d.DialContext(ctx, "tcp", host)
+		return p.tlsDialer.DialContext(ctx, "tcp", host)
 	} else {
-		if !strings.Contains(host, ":") {
+		if !strings.Contains(host, ":") { //FIXME: ipv6 won't work well
 			host = host + ":80"
 		}
 
-		return net.DialTimeout("tcp", host, p.Timeout)
+		return p.plainDialer.DialContext(ctx, "tcp", host)
 	}
 }
 
@@ -172,45 +192,6 @@ func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if conn.Err == nil && !conn.Canceled {
 		p.idle[hostname] <- conn
 	}
-}
-
-// TODO: incorporate above
-func getTransport(maxConn int, timeout time.Duration) *http.Transport {
-	r := NewResolver()
-
-	plainDialer := net.Dialer{
-		Timeout: timeout,
-	}
-
-	tlsDialer := tls.Dialer{
-		NetDialer: &plainDialer,
-		Config: &tls.Config{
-			InsecureSkipVerify: true, // TODO: make configurable
-		},
-	}
-
-	h := &http.Transport{
-		DialContext: func(ctx context.Context, network string, addr string) (conn net.Conn, err error) {
-			resolvedHost, err := r.ResolveHost(ctx, addr)
-			if err != nil {
-				return nil, err
-			}
-			return plainDialer.DialContext(ctx, network, resolvedHost)
-		},
-		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			resolvedHost, err := r.ResolveHost(ctx, addr)
-			if err != nil {
-				return nil, err
-			}
-			return tlsDialer.DialContext(ctx, network, resolvedHost)
-		},
-		MaxIdleConns:    maxConn,
-		MaxConnsPerHost: maxConn,
-		IdleConnTimeout: 10 * timeout, // TODO: is it right to do 10x?
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
-	}
-	return h
 }
 
 func NewResolver() *RRResolver {
@@ -228,7 +209,7 @@ type RRResolver struct {
 }
 
 func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, error) {
-	host, port, foundSep := strings.Cut(addr, ":")
+	host, port, foundSep := strings.Cut(addr, ":") // FIXME: what if it's already an ipv6?
 	if !foundSep {
 		panic("The address must constain port: " + addr)
 	}

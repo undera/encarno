@@ -94,12 +94,8 @@ func TestLoop(t *testing.T) {
 
 	values := map[string][]byte{}
 	nib := Nib{
-		connPool: &ConnPool{
-			idle:           make(map[string]ConnChan),
-			MaxConnections: 100,
-			Timeout:        100 * time.Second,
-		},
-		values: values,
+		connPool: NewConnectionPool(100, 1*time.Second),
+		values:   values,
 	}
 
 	item := core.InputItem{
@@ -127,7 +123,7 @@ func TestLoop(t *testing.T) {
 func TestLoopNative(t *testing.T) {
 	start := time.Now()
 	i := float64(0)
-	for ; i < 20000; i++ {
+	for ; i < 100000; i++ {
 		doreq(t)
 	}
 	elapsed := time.Now().Sub(start)
@@ -158,6 +154,6 @@ func doreq(t *testing.T) {
 	io.ReadAll(res.Body)
 	res.Body.Close()
 	_ = res
-	t.Logf("Status: %d", res.StatusCode)
-	time.Sleep(10 * time.Second)
+	//t.Logf("Status: %d", res.StatusCode)
+	//time.Sleep(10 * time.Second)
 }
