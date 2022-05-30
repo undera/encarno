@@ -25,17 +25,18 @@ type Output interface {
 // write only failures request/response
 
 type OutputItem struct {
-	SentBytesCount int
-	RespBytesCount int
-	RespBytes      []byte
-	Error          error
-	Status         int
-	StartTime      time.Time
-	ConnectTime    time.Duration
-	SentTime       time.Duration
-	FirstByteTime  time.Duration
-	ReadTime       time.Duration
-	Elapsed        time.Duration
+	SentBytesCount  int
+	RespBytesCount  int
+	RespBytes       []byte
+	Error           error
+	Status          int
+	StartTime       time.Time
+	ConnectTime     time.Duration
+	SentTime        time.Duration
+	FirstByteTime   time.Duration
+	ReadTime        time.Duration
+	Elapsed         time.Duration
+	StartDivergence time.Duration
 }
 
 func (i *OutputItem) EndWithError(err error) *OutputItem {

@@ -33,19 +33,21 @@ outer:
 			item := <-w.Input
 
 			w.Output.IncWorking()
+			item.ReplaceValues(w.values)
+
 			curTime := time.Now()
 			offset := curTime.Sub(w.StartTime)
 			if offset < item.TimeOffset {
 				delay := item.TimeOffset - offset
 				log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
 				w.Output.IncSleeping()
-				time.Sleep(time.Duration(delay))
+				time.Sleep(delay)
 				w.Output.DecSleeping()
 			}
 
 			w.Output.IncBusy()
-			item.ReplaceValues(w.values)
 			res := w.Nib.Punch(item.Payload)
+			res.StartDivergence = res.StartTime.Sub(w.StartTime.Add(item.TimeOffset))
 			res.ExtractValues(item.RegexOut, w.values)
 			w.Output.Push(res)
 			w.Output.DecBusy()

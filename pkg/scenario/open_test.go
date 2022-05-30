@@ -15,20 +15,24 @@ func init() {
 }
 
 func TestExternal(t *testing.T) {
-	scen := External{
-		Workers:    make([]core.Worker, 0),
-		Input:      &DummyInput{},
-		Output:     &DummyOutput{},
+	scen := OpenWorkload{
+		BaseWorkload: BaseWorkload{
+			Workers:   make([]core.Worker, 0),
+			Input:     &DummyInput{},
+			Output:    &DummyOutput{},
+			StartTime: time.Now(),
+			NibMaker: func() core.Nib {
+				nib := DummyNib{}
+				return &nib
+			},
+		},
 		MinWorkers: 0,
 		MaxWorkers: 0,
-		StartTime:  time.Now(),
-		NibMaker: func() core.Nib {
-			nib := DummyNib{}
-			return &nib
-		},
 	}
+	scen.Spawner = &scen
 
 	scen.Run()
+	log.Infof("Final sleep")
 	time.Sleep(5 * time.Second)
 }
 
@@ -39,7 +43,7 @@ func (d *DummyInput) Generator() core.InputChannel {
 	ch := make(core.InputChannel)
 	go func() {
 		defer close(ch)
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 1000; i++ {
 			log.Infof("Iteration %d", i)
 			item := &core.InputItem{
 				TimeOffset: time.Duration(i) * 1000 * time.Millisecond,

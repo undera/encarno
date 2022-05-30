@@ -8,3 +8,8 @@ package core
 type Scenario interface {
 	Run()
 }
+
+type WorkerSpawner interface {
+	SpawnInitial(inputs InputChannel)
+	SpawnForSample(inputs InputChannel, sample *InputItem)
+}
