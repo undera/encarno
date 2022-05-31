@@ -15,14 +15,12 @@ var hostname = "localhost:8070"
 func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	values := map[string][]byte{"input": []byte("theinput")}
 	nib := Nib{
 		connPool: &ConnPool{
 			idle:           make(map[string]ConnChan),
 			MaxConnections: 100,
 			Timeout:        1 * time.Second,
 		},
-		values: values,
 	}
 
 	type Item struct {
@@ -81,10 +79,6 @@ func TestOne(t *testing.T) {
 
 		t.Logf("Status: %d %v", res.Status, res.Error)
 
-		if string(values["test1"]) != item.out {
-			t.Errorf("No right value: %s", string(values["test1"]))
-		}
-
 		//<-nib.transport.idle[item.inp.Hostname]
 	}
 }
@@ -92,10 +86,8 @@ func TestOne(t *testing.T) {
 func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
-	values := map[string][]byte{}
 	nib := Nib{
 		connPool: NewConnectionPool(100, 1*time.Second),
-		values:   values,
 	}
 
 	item := core.InputItem{

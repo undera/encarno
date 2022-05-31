@@ -58,7 +58,7 @@ outer:
 
 			w.Output.IncBusy()
 			res := w.Nib.Punch(item.Payload)
-			res.StartDivergence = res.StartTime.Sub(expectedStart)
+			res.StartMissed = res.StartTime.Sub(expectedStart)
 			res.ExtractValues(item.RegexOut, w.values)
 			w.Output.Push(res)
 			w.Output.DecBusy()

@@ -31,7 +31,3 @@ func (s *OpenWorkload) SpawnInitial(inputs core.InputChannel) {
 		s.SpawnWorker(inputs)
 	}
 }
-
-func (s *OpenWorkload) Run() {
-	s.BaseWorkload.Run()
-}

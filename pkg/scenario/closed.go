@@ -9,6 +9,9 @@ type ClosedWorkload struct {
 	BaseWorkload
 }
 
+func (s *ClosedWorkload) SpawnInitial(inputs core.InputChannel) {
+}
+
 func (s *ClosedWorkload) SpawnForSample(inputs core.InputChannel, x *core.InputItem) {
 	if x.TimeOffset > 0 {
 		s.SpawnWorker(inputs)
