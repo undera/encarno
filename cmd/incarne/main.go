@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-var controller *core.Controller
+var controller core.WorkerSpawner
 
 func main() {
 	if os.Getenv("DEBUG") == "" {
@@ -43,10 +43,7 @@ func main() {
 	}
 
 	config := LoadConfig(flag.Arg(0))
-	nibMaker := NewNibMaker(config.Protocol)
-	spawner := NewSpawner(config.Workers, nibMaker)
-
-	controller.RunWithConfig(config, spawner)
+	Run(config)
 }
 
 func LoadConfig(path string) core.Configuration {
@@ -89,6 +86,16 @@ func handleSignals() {
 	}()
 }
 
+func Run(config core.Configuration) {
+	nibMaker := NewNibMaker(config.Protocol)
+	spawner := NewSpawner(config.Workers, config.Input, nibMaker)
+
+	var output core.Output
+	output.Start(config.Output)
+
+	spawner.Run()
+}
+
 func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	log.Infof("Client protocol is: %s", protocol.Driver)
 	switch protocol.Driver {
@@ -114,17 +121,22 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	}
 }
 
-func NewSpawner(workers core.WorkerConf, maker core.NibMaker) core.WorkerSpawner {
+func NewSpawner(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker) core.WorkerSpawner {
 	switch workers.Mode {
 	case "open":
+		inputChannel := core.NewInput(inputConfig)
 		workload := scenario.OpenWorkload{
-			Output:     nil,
+			Status:     nil,
 			MinWorkers: 0,
 			MaxWorkers: 0,
+			Input:      inputChannel,
 		}
 		return &workload
 	case "closed":
-		workload := scenario.ClosedWorkload{}
+		workload := scenario.ClosedWorkload{
+			Scenario:    nil, // TODO
+			InputConfig: inputConfig,
+		}
 		return &workload
 	default:
 		panic(fmt.Sprintf("Unsupported workers mode: %s", workers.Mode))

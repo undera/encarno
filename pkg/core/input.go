@@ -15,6 +15,7 @@ type InputChannel chan *InputItem
 
 type Input interface {
 	Start(input InputConf) InputChannel
+	Clone() Input
 }
 
 type InputItem struct {
@@ -41,4 +42,8 @@ type ExtractRegex struct {
 
 func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
+}
+
+func NewInput(config InputConf) InputChannel {
+	return nil // TODO
 }

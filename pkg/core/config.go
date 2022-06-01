@@ -17,11 +17,18 @@ type OutputConf struct {
 	// error log path
 	// binary log path
 	// csv log path
+	// logging print options
 }
 
-type WorkerConf struct {
-	Mode string // workload open/closed
+type WorkloadMode = string
 
+const (
+	WorkloadOpen   WorkloadMode = "open"
+	WorkloadClosed WorkloadMode = "closed"
+)
+
+type WorkerConf struct {
+	Mode WorkloadMode
 }
 
 type ProtoConf struct {

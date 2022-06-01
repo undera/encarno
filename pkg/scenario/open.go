@@ -8,18 +8,18 @@ import (
 
 // OpenWorkload imlements pre-calculated open workload scenario
 type OpenWorkload struct {
-	BaseWorkload
+	core.BaseWorkload
+	Status     core.Status
 	MinWorkers int
 	MaxWorkers int
+	Input      core.InputChannel
+
+	interrupted bool
 }
 
-func (s *OpenWorkload) SpawnForSample(inputs core.InputChannel, x *core.InputItem) {
-	working := s.Output.GetWorking()
-	sleeping := s.Output.GetSleeping()
-	log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Output.GetBusy())
-	if working >= int64(len(s.Workers)) && sleeping < 1 {
-		s.SpawnWorker(inputs)
-	}
+func (s *OpenWorkload) Interrupt() {
+	s.interrupted = true
+	// TODO: tell workers to stop
 }
 
 func (s *OpenWorkload) SpawnInitial(inputs core.InputChannel) {
@@ -29,5 +29,28 @@ func (s *OpenWorkload) SpawnInitial(inputs core.InputChannel) {
 	initialWorkers = int(math.Max(1, float64(initialWorkers)))
 	for x := 0; x < initialWorkers; x++ {
 		s.SpawnWorker(inputs)
+	}
+}
+
+func (s *OpenWorkload) Run() {
+	log.Debugf("Starting open workload scenario")
+
+	workerInputs := make(core.InputChannel)
+
+	s.SpawnInitial(workerInputs)
+
+	for x := range s.Input {
+		select {
+		case workerInputs <- x: // try putting if somebody is reading it
+			continue
+		default:
+			working := s.Status.GetWorking()
+			sleeping := s.Status.GetSleeping()
+			log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
+			if working >= int64(len(s.Workers)) && sleeping < 1 {
+				s.SpawnWorker(workerInputs)
+			}
+			workerInputs <- x
+		}
 	}
 }

@@ -8,11 +8,7 @@ import (
 // basic worker and regex-capable worker, regex-capable should read file on its own
 // track expected request time and factual, report own overloaded state, auto-stop if unable to conform
 
-type Worker interface {
-	Run()
-}
-
-type BasicWorker struct {
+type Worker struct {
 	Name           string
 	Nib            Nib
 	StartTime      time.Time
@@ -25,7 +21,7 @@ type BasicWorker struct {
 	Status         Status
 }
 
-func (w *BasicWorker) Run() {
+func (w *Worker) Run() {
 	timeTracker := TimeTracker{Stamp: time.Now()}
 outer:
 	for {
@@ -71,9 +67,8 @@ outer:
 	w.Finished = true
 }
 
-func NewBasicWorker(name string, abort chan struct{}, input InputChannel, output Output, startTime time.Time, nib Nib, status Status) Worker {
-	var b Worker
-	b = &BasicWorker{
+func NewBasicWorker(name string, abort chan struct{}, input InputChannel, output Output, startTime time.Time, nib Nib, status Status) *Worker {
+	b := &Worker{
 		Name:      name,
 		Nib:       nib,
 		Abort:     abort,
@@ -110,7 +105,6 @@ func (t *TimeTracker) Switch() {
 // spit out some stats each N seconds
 
 type WorkerSpawner interface {
-	SpawnInitial(inputs InputChannel)
-	SpawnOnDemand(inputs InputChannel, sample *InputItem)
-	ShouldStop() bool
+	Run()
+	Interrupt()
 }

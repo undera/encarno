@@ -1,1 +1,31 @@
 package core
+
+import (
+	log "github.com/sirupsen/logrus"
+	"strconv"
+	"time"
+)
+
+// WorkloadLevel arrays may be used to specify workload scenario (warmup, ramp-up, steps, steady)
+type WorkloadLevel struct {
+	Level  int
+	RampUp time.Duration
+	Steady time.Duration
+}
+
+type BaseWorkload struct {
+	Workers   []*Worker
+	NibMaker  NibMaker
+	StartTime time.Time
+	Output    Output
+	Status    Status
+}
+
+func (s *BaseWorkload) SpawnWorker(inputs InputChannel) {
+	name := "worker#" + strconv.Itoa(len(s.Workers)+1)
+	log.Infof("Spawning worker: %s", name)
+	abort := make(chan struct{})
+	worker := NewBasicWorker(name, abort, inputs, s.Output, s.StartTime, s.NibMaker(), s.Status)
+	s.Workers = append(s.Workers, worker)
+	go worker.Run()
+}
