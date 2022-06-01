@@ -14,7 +14,7 @@ import (
 type InputChannel chan *InputItem
 
 type Input interface {
-	Generator() InputChannel
+	Start(input InputConf) InputChannel
 }
 
 type InputItem struct {

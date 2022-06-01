@@ -6,10 +6,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"incarne/pkg/core"
+	"incarne/pkg/http"
+	"incarne/pkg/scenario"
 	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var controller *core.Controller
@@ -39,12 +42,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	config := LoadConfig()
-	controller.RunWithConfig(config)
+	config := LoadConfig(flag.Arg(0))
+	nibMaker := NewNibMaker(config.Protocol)
+	spawner := NewSpawner(config.Workers, nibMaker)
+
+	controller.RunWithConfig(config, spawner)
 }
 
-func LoadConfig() core.Configuration {
-	yamlFile, err := ioutil.ReadFile(flag.Arg(0))
+func LoadConfig(path string) core.Configuration {
+	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
@@ -56,6 +62,8 @@ func LoadConfig() core.Configuration {
 	}
 	return cfg
 }
+
+var alreadyHandlingSignal = false
 
 func handleSignals() {
 	signalChanel := make(chan os.Signal, 1)
@@ -69,13 +77,56 @@ func handleSignals() {
 		select {
 		case s := <-signalChanel:
 			log.Infof("Got signal: %v", s.String())
+			if !alreadyHandlingSignal {
+				alreadyHandlingSignal = true
 
-			if controller != nil {
-				controller.Interrupt()
+				if controller != nil {
+					controller.Interrupt()
+				}
 			}
-
 			os.Exit(2)
-			return
 		}
 	}()
+}
+
+func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
+	log.Infof("Client protocol is: %s", protocol.Driver)
+	switch protocol.Driver {
+	case "dummy":
+		return func() core.Nib {
+			return &core.DummyNib{}
+		}
+	case "http":
+		httpConf := http.ParseHTTPConf(protocol)
+		pool := &http.ConnPool{
+			Idle:           make(map[string]http.ConnChan),
+			MaxConnections: httpConf.MaxConnections,
+			Timeout:        httpConf.Timeout * time.Second,
+		}
+
+		return func() core.Nib {
+			return &http.Nib{
+				ConnPool: pool,
+			}
+		}
+	default:
+		panic(fmt.Sprintf("Unsupported protocol driver: %v", protocol.Driver))
+	}
+}
+
+func NewSpawner(workers core.WorkerConf, maker core.NibMaker) core.WorkerSpawner {
+	switch workers.Mode {
+	case "open":
+		workload := scenario.OpenWorkload{
+			Output:     nil,
+			MinWorkers: 0,
+			MaxWorkers: 0,
+		}
+		return &workload
+	case "closed":
+		workload := scenario.ClosedWorkload{}
+		return &workload
+	default:
+		panic(fmt.Sprintf("Unsupported workers mode: %s", workers.Mode))
+	}
 }

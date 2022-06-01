@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"incarne/pkg/core"
 	"io"
 	"net"
 	"net/url"
@@ -99,7 +101,7 @@ func (r *BufferedConn) Reset() {
 type ConnChan = chan *BufferedConn
 
 type ConnPool struct {
-	idle           map[string]ConnChan
+	Idle           map[string]ConnChan
 	MaxConnections int
 	Timeout        time.Duration
 	resolver       *RRResolver
@@ -121,7 +123,7 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 				InsecureSkipVerify: true, // TODO: make configurable
 			},
 		},
-		idle:           make(map[string]ConnChan),
+		Idle:           make(map[string]ConnChan),
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
 	}
@@ -130,21 +132,21 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 
 func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 	var ch ConnChan
-	if c, ok := p.idle[hostname]; ok {
+	if c, ok := p.Idle[hostname]; ok {
 		ch = c
 	} else {
 		ch = make(ConnChan, p.MaxConnections)
-		p.idle[hostname] = ch
+		p.Idle[hostname] = ch
 	}
 
 	select {
-	case conn := <-p.idle[hostname]:
+	case conn := <-p.Idle[hostname]:
 		if conn.Err == io.EOF {
-			log.Debugf("Cannot reuse idle connection: %v", conn.Err)
+			log.Debugf("Cannot reuse Idle connection: %v", conn.Err)
 		} else if conn.Err != nil {
-			log.Warningf("Cannot reuse idle connection: %v", conn.Err)
+			log.Warningf("Cannot reuse Idle connection: %v", conn.Err)
 		} else {
-			log.Debugf("Reusing idle connection to %s", hostname)
+			log.Debugf("Reusing Idle connection to %s", hostname)
 			conn.Reset()
 			return conn, nil
 		}
@@ -190,7 +192,7 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if conn.Err == nil && !conn.Canceled {
-		p.idle[hostname] <- conn
+		p.Idle[hostname] <- conn
 	}
 }
 
@@ -236,4 +238,21 @@ func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, erro
 	}
 
 	return ip + ":" + port, nil
+}
+
+type Conf struct {
+	MaxConnections int
+	Timeout        time.Duration
+}
+
+func ParseHTTPConf(conf core.ProtoConf) Conf {
+	cfg := Conf{
+		MaxConnections: 1,
+		Timeout:        1 * time.Second,
+	}
+	err := yaml.Unmarshal(conf.FullText, &cfg)
+	if err != nil {
+		panic(err)
+	}
+	return cfg
 }

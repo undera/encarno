@@ -7,9 +7,13 @@ import (
 )
 
 type Output interface {
+	Start(output OutputConf)
+	Push(res *OutputItem)
+}
+
+type Status interface {
 	DecBusy()
 	IncBusy()
-	Push(res *OutputItem)
 	IncSleeping()
 	DecSleeping()
 	IncWorking()

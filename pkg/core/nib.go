@@ -1,8 +1,15 @@
 package core
 
+import (
+	log "github.com/sirupsen/logrus"
+	"time"
+)
+
 type Nib interface {
-	Punch(payload []byte) *OutputItem
+	Punch(item *InputItem) *OutputItem
 }
+
+type NibMaker = func() Nib
 
 // ipv4/ipv6
 // http and https and dummy (udp? pluggable?)
@@ -13,3 +20,16 @@ type Nib interface {
 // DNS - to cache or not to cache?
 // track times breakdown - DNS/CONN/SSL/REQ/TTFB/RESP
 // connect timeout, recv timeout, forced overall timeout
+
+type DummyNib struct {
+}
+
+func (d DummyNib) Punch(item *InputItem) *OutputItem {
+	start := time.Now()
+	log.Debugf("Processed payload: %s", item.Payload)
+	end := time.Now()
+	return &OutputItem{
+		StartTime: start,
+		Elapsed:   end.Sub(start),
+	}
+}

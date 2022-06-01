@@ -16,8 +16,8 @@ func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		connPool: &ConnPool{
-			idle:           make(map[string]ConnChan),
+		ConnPool: &ConnPool{
+			Idle:           make(map[string]ConnChan),
 			MaxConnections: 100,
 			Timeout:        1 * time.Second,
 		},
@@ -79,7 +79,7 @@ func TestOne(t *testing.T) {
 
 		t.Logf("Status: %d %v", res.Status, res.Error)
 
-		//<-nib.transport.idle[item.inp.Hostname]
+		//<-nib.transport.Idle[item.inp.Hostname]
 	}
 }
 
@@ -87,7 +87,7 @@ func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		connPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second),
 	}
 
 	item := core.InputItem{

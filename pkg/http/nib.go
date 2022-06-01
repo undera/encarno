@@ -10,7 +10,7 @@ import (
 )
 
 type Nib struct {
-	connPool *ConnPool
+	ConnPool *ConnPool
 }
 
 func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
@@ -30,7 +30,7 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 
 func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
 	before := time.Now()
-	conn, err := n.connPool.Get(item.Hostname)
+	conn, err := n.ConnPool.Get(item.Hostname)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil
@@ -38,7 +38,7 @@ func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *Buffe
 	connected := time.Now()
 	outItem.ConnectTime = connected.Sub(before)
 
-	if err := conn.SetDeadline(time.Now().Add(n.connPool.Timeout)); err != nil {
+	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
 		outItem.EndWithError(err)
 		return nil
 	}
@@ -82,7 +82,7 @@ func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *cor
 
 	result.RespBytesCount = conn.ReadLen
 	result.RespBytes = conn.ReadRecorded.Bytes()
-	
+
 	result.Status = resp.StatusCode
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
@@ -93,7 +93,7 @@ func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *cor
 		}
 	}
 
-	n.connPool.Return(item.Hostname, conn)
+	n.ConnPool.Return(item.Hostname, conn)
 }
 
 func (n *Nib) readerLoop() {
