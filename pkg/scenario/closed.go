@@ -24,13 +24,15 @@ func (s *ClosedWorkload) Run() {
 		input := core.NewInput(s.InputConfig)
 		s.SpawnWorker(input)
 	}
+	log.Infof("Closed workload scenario is complete")
 }
 
-func NewClosedWorkload(inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+func NewClosedWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	workload := ClosedWorkload{
 		BaseWorkload: core.NewBaseWorkload(maker, output),
-		Scenario:     nil, // TODO
+		Scenario:     inputConfig.WorkloadSchedule,
 		InputConfig:  inputConfig,
 	}
+
 	return &workload
 }

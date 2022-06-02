@@ -39,6 +39,7 @@ func (s *OpenWorkload) Run() {
 	}
 
 	workerInputs := make(core.InputChannel)
+	// TODO: separate channels to read payload and schedule
 
 	s.SpawnInitial(workerInputs)
 
@@ -50,7 +51,8 @@ func (s *OpenWorkload) Run() {
 			working := s.Status.GetWorking()
 			sleeping := s.Status.GetSleeping()
 			log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
-			if working >= int64(len(s.Workers)) && sleeping < 1 {
+			workerCnt := len(s.Workers)
+			if working >= int64(workerCnt) && sleeping < 1 && workerCnt < s.MaxWorkers {
 				s.SpawnWorker(workerInputs)
 			}
 			workerInputs <- x
@@ -58,12 +60,12 @@ func (s *OpenWorkload) Run() {
 	}
 }
 
-func NewOpenWorkload(inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	inputChannel := core.NewInput(inputConfig)
 	workload := OpenWorkload{
 		BaseWorkload: core.NewBaseWorkload(maker, output),
-		MinWorkers:   0,
-		MaxWorkers:   0,
+		MinWorkers:   workers.StartingWorkers,
+		MaxWorkers:   workers.MaxWorkers,
 		Input:        inputChannel,
 	}
 	return &workload

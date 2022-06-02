@@ -13,6 +13,20 @@ type WorkloadLevel struct {
 	Steady time.Duration
 }
 
+type WorkloadMode = string
+
+const (
+	WorkloadOpen   WorkloadMode = "open"
+	WorkloadClosed WorkloadMode = "closed"
+)
+
+type WorkerConf struct {
+	Mode             WorkloadMode
+	WorkloadSchedule []WorkloadLevel
+	StartingWorkers  int
+	MaxWorkers       int
+}
+
 type BaseWorkload struct {
 	Workers   []*Worker
 	NibMaker  NibMaker

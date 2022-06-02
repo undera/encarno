@@ -16,7 +16,7 @@ func TestWorker(t *testing.T) {
 		queue: make(chan *OutputItem),
 	}
 	go output.bg()
-	worker := NewBasicWorker("test", abort, inputs, &output, time.Now(), &DummyNib{}, status)
+	worker := NewBasicWorker("test", abort, inputs, &output, time.Now(), &DummyNib{}, &StatusImpl{})
 	go worker.Run()
 
 	for i := time.Duration(0); i < 1000; i++ {

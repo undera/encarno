@@ -1,15 +1,20 @@
 package core
 
 import (
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strconv"
 	"time"
 )
 
-// reading input files
 // input file can contain timestamps, or can rely on internal schedule calculator
 // internal schedule calculator: warmup, ramp-up, steps, constant; for workers and for rps
-// request has label
+
+type InputConf struct {
+	PayloadFile  string
+	ScheduleFile string
+	StringsFile  string
+}
 
 type InputChannel chan *InputItem
 
@@ -48,8 +53,11 @@ func NewInput(config InputConf) InputChannel {
 	ch := make(InputChannel)
 	go func() {
 		for i := 0; i < 1000; i++ {
-			ch <- &InputItem{}
+			ch <- &InputItem{
+				TimeOffset: time.Duration(i) * time.Millisecond,
+			}
 		}
+		log.Infof("Input exhausted")
 		close(ch)
 	}()
 	return ch

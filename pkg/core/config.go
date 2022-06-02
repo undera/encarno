@@ -9,20 +9,6 @@ type Configuration struct {
 	Protocol ProtoConf
 }
 
-type InputConf struct {
-}
-
-type WorkloadMode = string
-
-const (
-	WorkloadOpen   WorkloadMode = "open"
-	WorkloadClosed WorkloadMode = "closed"
-)
-
-type WorkerConf struct {
-	Mode WorkloadMode
-}
-
 type ProtoConf struct {
 	Driver   string
 	FullText []byte
