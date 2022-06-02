@@ -17,11 +17,20 @@ func (s *ClosedWorkload) Interrupt() {
 }
 
 func (s *ClosedWorkload) Run() {
-	log.Debugf("Starting scenario 'external'")
+	log.Debugf("Starting closed workload")
 
 	for _, milestone := range s.Scenario {
 		_ = milestone
 		input := core.NewInput(s.InputConfig)
 		s.SpawnWorker(input)
 	}
+}
+
+func NewClosedWorkload(inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+	workload := ClosedWorkload{
+		BaseWorkload: core.NewBaseWorkload(maker, output),
+		Scenario:     nil, // TODO
+		InputConfig:  inputConfig,
+	}
+	return &workload
 }

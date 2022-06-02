@@ -19,13 +19,25 @@ type BaseWorkload struct {
 	StartTime time.Time
 	Output    Output
 	Status    Status
+	cnt       int
 }
 
 func (s *BaseWorkload) SpawnWorker(inputs InputChannel) {
-	name := "worker#" + strconv.Itoa(len(s.Workers)+1)
+	s.cnt++
+	name := "worker#" + strconv.Itoa(s.cnt)
 	log.Infof("Spawning worker: %s", name)
 	abort := make(chan struct{})
 	worker := NewBasicWorker(name, abort, inputs, s.Output, s.StartTime, s.NibMaker(), s.Status)
 	s.Workers = append(s.Workers, worker)
 	go worker.Run()
+}
+
+func NewBaseWorkload(maker NibMaker, output Output) BaseWorkload {
+	return BaseWorkload{
+		Workers:   make([]*Worker, 0),
+		NibMaker:  maker,
+		StartTime: time.Now(),
+		Output:    output,
+		Status:    &StatusImpl{},
+	}
 }

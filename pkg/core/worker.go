@@ -2,11 +2,76 @@ package core
 
 import (
 	log "github.com/sirupsen/logrus"
+	"sync/atomic"
 	"time"
 )
 
 // basic worker and regex-capable worker, regex-capable should read file on its own
 // track expected request time and factual, report own overloaded state, auto-stop if unable to conform
+
+// TODO refine what's actually needed
+type Status interface {
+	DecBusy()
+	IncBusy()
+	IncSleeping()
+	DecSleeping()
+	IncWorking()
+	DecWorking()
+	GetWorking() int64
+	GetSleeping() int64
+	GetBusy() int64
+}
+
+type StatusImpl struct {
+	sleeping int64
+	busy     int64
+	working  int64
+}
+
+func (o *StatusImpl) GetWorking() int64 {
+	return o.working
+}
+
+func (o *StatusImpl) GetSleeping() int64 {
+	return o.sleeping
+}
+
+func (o *StatusImpl) GetBusy() int64 {
+	return o.busy
+}
+
+func (o *StatusImpl) IncWorking() {
+	atomic.AddInt64(&o.working, 1)
+}
+
+func (o *StatusImpl) DecWorking() {
+	atomic.AddInt64(&o.working, -1)
+	if o.working < 0 {
+		panic("Counter cannot be negative")
+	}
+}
+
+func (o *StatusImpl) IncSleeping() {
+	atomic.AddInt64(&o.sleeping, 1)
+	if o.sleeping < 0 {
+		panic("Counter cannot be negative")
+	}
+}
+
+func (o *StatusImpl) DecSleeping() {
+	atomic.AddInt64(&o.sleeping, -1)
+}
+
+func (o *StatusImpl) DecBusy() {
+	atomic.AddInt64(&o.busy, -1)
+	if o.busy < 0 {
+		panic("Counter cannot be negative")
+	}
+}
+
+func (o *StatusImpl) IncBusy() {
+	atomic.AddInt64(&o.busy, 1)
+}
 
 type Worker struct {
 	Name           string

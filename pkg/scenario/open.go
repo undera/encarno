@@ -9,7 +9,6 @@ import (
 // OpenWorkload imlements pre-calculated open workload scenario
 type OpenWorkload struct {
 	core.BaseWorkload
-	Status     core.Status
 	MinWorkers int
 	MaxWorkers int
 	Input      core.InputChannel
@@ -18,7 +17,7 @@ type OpenWorkload struct {
 }
 
 func (s *OpenWorkload) Interrupt() {
-	s.interrupted = true
+	s.interrupted = true // TODO: use that flag
 	// TODO: tell workers to stop
 }
 
@@ -34,6 +33,10 @@ func (s *OpenWorkload) SpawnInitial(inputs core.InputChannel) {
 
 func (s *OpenWorkload) Run() {
 	log.Debugf("Starting open workload scenario")
+
+	if s.Input == nil {
+		panic("Cannot have nil as input channel for open workload")
+	}
 
 	workerInputs := make(core.InputChannel)
 
@@ -53,4 +56,15 @@ func (s *OpenWorkload) Run() {
 			workerInputs <- x
 		}
 	}
+}
+
+func NewOpenWorkload(inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+	inputChannel := core.NewInput(inputConfig)
+	workload := OpenWorkload{
+		BaseWorkload: core.NewBaseWorkload(maker, output),
+		MinWorkers:   0,
+		MaxWorkers:   0,
+		Input:        inputChannel,
+	}
+	return &workload
 }

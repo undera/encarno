@@ -1,11 +1,14 @@
 package main
 
 import (
+	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"testing"
 )
 
 func TestOpen(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
 	c := core.Configuration{
 		Input:    core.InputConf{},
 		Output:   core.OutputConf{},

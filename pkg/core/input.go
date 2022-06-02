@@ -45,5 +45,12 @@ func (r *ExtractRegex) String() string {
 }
 
 func NewInput(config InputConf) InputChannel {
-	return nil // TODO
+	ch := make(InputChannel)
+	go func() {
+		for i := 0; i < 1000; i++ {
+			ch <- &InputItem{}
+		}
+		close(ch)
+	}()
+	return ch
 }

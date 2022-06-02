@@ -6,27 +6,18 @@ import (
 	"time"
 )
 
+type OutputConf struct {
+	LDJSONFile string
+	// TODO CSVFile string
+	// TODO BinaryFile string
+	// TODO ReqRespFile string
+	// TODO ReqRespLevel string - all, status>=400, errors only
+}
+
 type Output interface {
 	Start(output OutputConf)
 	Push(res *OutputItem)
 }
-
-type Status interface {
-	DecBusy()
-	IncBusy()
-	IncSleeping()
-	DecSleeping()
-	IncWorking()
-	DecWorking()
-	GetWorking() int64
-	GetSleeping() int64
-	GetBusy() int64
-}
-
-// get result from worker via channel
-// write small binary results
-// write full request/response for debugging
-// write only failures request/response
 
 type OutputItem struct {
 	SentBytesCount int
@@ -61,4 +52,53 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 			values[name] = all[rand.Intn(len(all))][outSpec.GroupNo]
 		}
 	}
+}
+
+type MultiFileOutput struct {
+	Outs []SingleOut
+
+	// get result from worker via channel
+	// write small binary results
+	// write full request/response for debugging
+	// write only failures request/response
+}
+
+func (m *MultiFileOutput) Start(output OutputConf) {
+	// TODO: do we need it?
+}
+
+func (m *MultiFileOutput) Push(res *OutputItem) {
+	for _, out := range m.Outs {
+		out.Push(res)
+	}
+}
+
+func NewMultiOutput(conf OutputConf) Output {
+	out := MultiFileOutput{
+		Outs: make([]SingleOut, 0),
+	}
+
+	if conf.LDJSONFile != "" {
+		out.Outs = append(out.Outs, &LDJSONOut{})
+	}
+
+	return &out
+}
+
+type SingleOut interface {
+	Push(*OutputItem)
+	Close()
+}
+
+type LDJSONOut struct {
+}
+
+func (L *LDJSONOut) Push(item *OutputItem) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (L *LDJSONOut) Close() {
+	//TODO implement me
+	panic("implement me")
 }

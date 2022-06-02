@@ -1,11 +1,9 @@
 package scenario
 
 import (
-	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"strconv"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -55,62 +53,6 @@ func (d *DummyInput) Generator() core.InputChannel {
 		}
 	}()
 	return ch
-}
-
-type DummyOutput struct {
-	sleeping int64
-	busy     int64
-	working  int64
-}
-
-func (o *DummyOutput) GetWorking() int64 {
-	return o.working
-}
-
-func (o *DummyOutput) GetSleeping() int64 {
-	return o.sleeping
-}
-
-func (o *DummyOutput) GetBusy() int64 {
-	return o.busy
-}
-
-func (o *DummyOutput) IncWorking() {
-	atomic.AddInt64(&o.working, 1)
-}
-
-func (o *DummyOutput) DecWorking() {
-	atomic.AddInt64(&o.working, -1)
-	if o.working < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *DummyOutput) IncSleeping() {
-	atomic.AddInt64(&o.sleeping, 1)
-	if o.sleeping < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *DummyOutput) DecSleeping() {
-	atomic.AddInt64(&o.sleeping, -1)
-}
-
-func (o *DummyOutput) Push(res *core.OutputItem) {
-	data, err := json.Marshal(res)
-	log.Infof("Output result: %s %v", data, err)
-}
-
-func (o *DummyOutput) DecBusy() {
-	atomic.AddInt64(&o.busy, -1)
-	if o.busy < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *DummyOutput) IncBusy() {
-	atomic.AddInt64(&o.busy, 1)
 }
 
 type DummyNib struct {

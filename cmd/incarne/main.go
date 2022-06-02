@@ -87,13 +87,12 @@ func handleSignals() {
 }
 
 func Run(config core.Configuration) {
-	nibMaker := NewNibMaker(config.Protocol)
-	spawner := NewSpawner(config.Workers, config.Input, nibMaker)
-
-	var output core.Output
+	output := core.NewMultiOutput(config.Output)
 	output.Start(config.Output)
 
-	spawner.Run()
+	nibMaker := NewNibMaker(config.Protocol)
+	workload := NewWorkload(config.Workers, config.Input, nibMaker, output)
+	workload.Run()
 }
 
 func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
@@ -121,23 +120,12 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	}
 }
 
-func NewSpawner(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker) core.WorkerSpawner {
+func NewWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	switch workers.Mode {
 	case "open":
-		inputChannel := core.NewInput(inputConfig)
-		workload := scenario.OpenWorkload{
-			Status:     nil,
-			MinWorkers: 0,
-			MaxWorkers: 0,
-			Input:      inputChannel,
-		}
-		return &workload
+		return scenario.NewOpenWorkload(inputConfig, maker, output)
 	case "closed":
-		workload := scenario.ClosedWorkload{
-			Scenario:    nil, // TODO
-			InputConfig: inputConfig,
-		}
-		return &workload
+		return scenario.NewClosedWorkload(inputConfig, maker, output)
 	default:
 		panic(fmt.Sprintf("Unsupported workers mode: %s", workers.Mode))
 	}

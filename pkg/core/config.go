@@ -12,14 +12,6 @@ type Configuration struct {
 type InputConf struct {
 }
 
-type OutputConf struct {
-	// detailed log path
-	// error log path
-	// binary log path
-	// csv log path
-	// logging print options
-}
-
 type WorkloadMode = string
 
 const (
