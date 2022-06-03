@@ -11,11 +11,11 @@ import (
 // internal schedule calculator: warmup, ramp-up, steps, constant; for workers and for rps
 
 type InputConf struct {
-	PayloadFile   string
-	ScheduleFile  string
-	StringsFile   string
-	EnableRegexes bool
-	Predefined    Input
+	PayloadFile    string
+	StringsFile    string
+	EnableRegexes  bool
+	Predefined     Input
+	IterationLimit int
 }
 
 type InputChannel chan *PayloadItem
@@ -58,9 +58,14 @@ func NewInput(config InputConf) InputChannel {
 
 	ch := make(InputChannel)
 	go func() {
-		for i := 0; i < 1000; i++ {
+		cnt := 0
+		for {
 			ch <- &PayloadItem{
 				//TimeOffset: time.Duration(i) * time.Millisecond,
+			}
+			cnt += 1
+			if config.IterationLimit > 0 && cnt >= config.IterationLimit {
+				break
 			}
 		}
 		log.Infof("Input exhausted")

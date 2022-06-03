@@ -13,5 +13,4 @@ execution:
 
 scenarios:
   simple:
-    requests:
-      - http://localhost/
+    nib: dummy

@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"testing"
+	"time"
 )
 
 func TestOpen(t *testing.T) {
@@ -16,9 +17,9 @@ func TestOpen(t *testing.T) {
 			Mode: core.WorkloadOpen,
 			WorkloadSchedule: []core.WorkloadLevel{
 				{
-					Level:  100,
-					RampUp: 3,
-					Steady: 5,
+					LevelStart: 0,
+					LevelEnd:   10,
+					Duration:   5 * time.Second,
 				},
 			},
 		},
@@ -37,9 +38,9 @@ func TestClosed(t *testing.T) {
 			Mode: core.WorkloadClosed,
 			WorkloadSchedule: []core.WorkloadLevel{
 				{
-					Level:  10,
-					RampUp: 3,
-					Steady: 5,
+					LevelStart: 0,
+					LevelEnd:   10,
+					Duration:   5 * time.Second,
 				},
 			},
 		},

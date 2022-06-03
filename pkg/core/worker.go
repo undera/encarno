@@ -97,7 +97,10 @@ outer:
 			log.Debugf("Aborting worker: %s", w.Name)
 			break outer
 		default:
-			w.Iteration(&timeTracker)
+			shouldStop := w.Iteration(&timeTracker)
+			if shouldStop {
+				break outer
+			}
 		}
 	}
 	log.Debugf("Worker finished: %s", w.Name)
@@ -105,7 +108,7 @@ outer:
 	// TODO: somehow notify workers array/count
 }
 
-func (w *Worker) Iteration(timeTracker *TimeTracker) {
+func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 	timeTracker.Reset()
 	timeTracker.Sleeping()
 	offset := <-w.InputSchedule
@@ -115,6 +118,10 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) {
 	w.IterationCount += 1
 
 	item := <-w.InputPayload
+	if item == nil {
+		return true
+	}
+
 	item.ReplaceValues(w.Values)
 
 	expectedStart := w.StartTime.Add(offset)
@@ -135,6 +142,7 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) {
 	w.Output.Push(res)
 	w.Status.DecBusy()
 	w.Status.DecWorking()
+	return false
 }
 
 func NewBasicWorker(name string, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {

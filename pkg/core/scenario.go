@@ -48,9 +48,9 @@ func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	go worker.Run()
 }
 
-func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, mode WorkloadMode) BaseWorkload {
+func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf) BaseWorkload {
 	var payloadGetter func() InputChannel
-	if inputConfig.EnableRegexes || mode == WorkloadClosed {
+	if inputConfig.EnableRegexes || wconf.Mode == WorkloadClosed {
 		inputChannel := NewInput(inputConfig)
 		payloadGetter = func() InputChannel {
 			return inputChannel
@@ -69,5 +69,6 @@ func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, mode 
 		Output:       output,
 		Status:       &StatusImpl{},
 		InputPayload: payloadGetter,
+		Scenario:     wconf.WorkloadSchedule,
 	}
 }

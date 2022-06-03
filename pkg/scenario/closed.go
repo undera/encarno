@@ -91,7 +91,7 @@ func (s *ClosedWorkload) GenerateSchedule() core.ScheduleChannel {
 
 func NewClosedWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	workload := ClosedWorkload{
-		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, core.WorkloadClosed),
+		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, workers),
 		InputConfig:  inputConfig,
 	}
 

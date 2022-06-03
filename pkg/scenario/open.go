@@ -67,7 +67,7 @@ func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	workload := OpenWorkload{
-		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, core.WorkloadOpen),
+		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, workers),
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
 	}
