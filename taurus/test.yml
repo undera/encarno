@@ -1,0 +1,17 @@
+---
+modules:
+  incarne:
+    path: bin/incarne
+
+
+execution:
+  - executor: incarne
+    scenario: simple
+    concurrency: 10
+    ramp-up: 30s
+    hold-for: 1m
+
+scenarios:
+  simple:
+    requests:
+      - http://localhost/
