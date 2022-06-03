@@ -11,28 +11,29 @@ import (
 // internal schedule calculator: warmup, ramp-up, steps, constant; for workers and for rps
 
 type InputConf struct {
-	PayloadFile  string
-	ScheduleFile string
-	StringsFile  string
+	PayloadFile   string
+	ScheduleFile  string
+	StringsFile   string
+	EnableRegexes bool
 }
 
-type InputChannel chan *InputItem
+type InputChannel chan *PayloadItem
+type ScheduleChannel chan time.Duration
 
 type Input interface {
 	Start(input InputConf) InputChannel
 	Clone() Input
 }
 
-type InputItem struct {
-	TimeOffset time.Duration
-	Label      string
-	Hostname   string
-	Payload    []byte
-	RegexOut   map[string]*ExtractRegex
+type PayloadItem struct {
+	Label    string
+	Hostname string
+	Payload  []byte
+	RegexOut map[string]*ExtractRegex
 }
 
-func (i *InputItem) ReplaceValues(values map[string][]byte) {
-	// TODO: only do it for selected values
+func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
+	// TODO: only do it for selected Values
 	for name, val := range values {
 		re := regexp.MustCompile("\\$\\{" + name + "}")
 		i.Payload = re.ReplaceAll(i.Payload, val)
@@ -53,8 +54,8 @@ func NewInput(config InputConf) InputChannel {
 	ch := make(InputChannel)
 	go func() {
 		for i := 0; i < 1000; i++ {
-			ch <- &InputItem{
-				TimeOffset: time.Duration(i) * time.Millisecond,
+			ch <- &PayloadItem{
+				//TimeOffset: time.Duration(i) * time.Millisecond,
 			}
 		}
 		log.Infof("Input exhausted")

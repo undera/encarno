@@ -13,7 +13,7 @@ type Nib struct {
 	ConnPool *ConnPool
 }
 
-func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
+func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 	outItem := core.OutputItem{
 		StartTime: time.Now(),
 	}
@@ -28,7 +28,7 @@ func (n *Nib) Punch(item *core.InputItem) *core.OutputItem {
 	return &outItem
 }
 
-func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *BufferedConn {
+func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) *BufferedConn {
 	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Hostname)
 	if err != nil {
@@ -54,7 +54,7 @@ func (n *Nib) sendRequest(item *core.InputItem, outItem *core.OutputItem) *Buffe
 	return conn
 }
 
-func (n *Nib) readResponse(item *core.InputItem, conn *BufferedConn, result *core.OutputItem) {
+func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem) {
 	begin := time.Now()
 	reader := bufio.NewReader(conn)
 	resp, err := http.ReadResponse(reader, nil)

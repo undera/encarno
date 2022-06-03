@@ -43,7 +43,7 @@ func (d *DummyInput) Generator() core.InputChannel {
 		defer close(ch)
 		for i := 0; i < 1000; i++ {
 			log.Infof("Iteration %d", i)
-			item := &core.InputItem{
+			item := &core.PayloadItem{
 				TimeOffset: time.Duration(i) * 1000 * time.Millisecond,
 				Label:      "label#" + strconv.Itoa(i%3),
 				Payload:    []byte("data"),

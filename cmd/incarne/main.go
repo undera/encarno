@@ -91,6 +91,7 @@ func Run(config core.Configuration) {
 	output.Start(config.Output)
 
 	nibMaker := NewNibMaker(config.Protocol)
+
 	workload := NewWorkload(config.Workers, config.Input, nibMaker, output)
 	workload.Run()
 }
@@ -120,13 +121,13 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	}
 }
 
-func NewWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
-	switch workers.Mode {
+func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output core.Output) core.WorkerSpawner {
+	switch workersConf.Mode {
 	case "open":
-		return scenario.NewOpenWorkload(workers, inputConfig, maker, output)
+		return scenario.NewOpenWorkload(workersConf, inputConfig, nibMaker, output)
 	case "closed":
-		return scenario.NewClosedWorkload(workers, inputConfig, maker, output)
+		return scenario.NewClosedWorkload(workersConf, inputConfig, nibMaker, output)
 	default:
-		panic(fmt.Sprintf("Unsupported workers mode: %s", workers.Mode))
+		panic(fmt.Sprintf("Unsupported workers mode: %s", workersConf.Mode))
 	}
 }

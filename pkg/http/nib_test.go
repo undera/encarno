@@ -24,43 +24,43 @@ func TestOne(t *testing.T) {
 	}
 
 	type Item struct {
-		inp core.InputItem
+		inp core.PayloadItem
 		out string
 	}
 
 	items := []Item{
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: hostname,
 				Payload:  []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: hostname,
 				Payload:  []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: "yandex.ru",
 				Payload:  []byte("GET / HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: "https://yandex.ru",
 				Payload:  []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
 			},
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: "httpbin.org",
 				Payload:  []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
 			},
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: "httpbin.org",
 				Payload:  []byte("POST /anything HTTP/1.1\r\nHost:httpbin.org\r\nX-Hdr: ${input}\r\n\r\n"), // "test ${input} while producing 123"
 				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
@@ -68,7 +68,7 @@ func TestOne(t *testing.T) {
 			out: "1",
 		},
 		{
-			inp: core.InputItem{
+			inp: core.PayloadItem{
 				Hostname: "notexistent",
 			},
 		},
@@ -90,7 +90,7 @@ func TestLoop(t *testing.T) {
 		ConnPool: NewConnectionPool(100, 1*time.Second),
 	}
 
-	item := core.InputItem{
+	item := core.PayloadItem{
 		Hostname: hostname,
 		Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 	}

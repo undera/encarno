@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
 	"math"
+	"time"
 )
 
 // OpenWorkload imlements pre-calculated open workload scenario
@@ -11,7 +12,6 @@ type OpenWorkload struct {
 	core.BaseWorkload
 	MinWorkers int
 	MaxWorkers int
-	Input      core.InputChannel
 
 	interrupted bool
 }
@@ -21,31 +21,26 @@ func (s *OpenWorkload) Interrupt() {
 	// TODO: tell workers to stop
 }
 
-func (s *OpenWorkload) SpawnInitial(inputs core.InputChannel) {
+func (s *OpenWorkload) SpawnInitial(scheduleChan core.ScheduleChannel) {
 	// spawn initial workers
 	initialWorkers := s.MinWorkers
 	initialWorkers = int(math.Min(float64(s.MaxWorkers), float64(initialWorkers)))
 	initialWorkers = int(math.Max(1, float64(initialWorkers)))
 	for x := 0; x < initialWorkers; x++ {
-		s.SpawnWorker(inputs)
+		s.SpawnWorker(scheduleChan)
 	}
 }
 
 func (s *OpenWorkload) Run() {
 	log.Debugf("Starting open workload scenario")
 
-	if s.Input == nil {
-		panic("Cannot have nil as input channel for open workload")
-	}
+	scheduleChan := make(chan time.Duration)
 
-	workerInputs := make(core.InputChannel)
-	// TODO: separate channels to read payload and schedule
+	s.SpawnInitial(scheduleChan)
 
-	s.SpawnInitial(workerInputs)
-
-	for x := range s.Input {
+	for x := range s.InputSchedule {
 		select {
-		case workerInputs <- x: // try putting if somebody is reading it
+		case scheduleChan <- x: // try putting if somebody is reading it
 			continue
 		default:
 			working := s.Status.GetWorking()
@@ -53,20 +48,18 @@ func (s *OpenWorkload) Run() {
 			log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
 			workerCnt := len(s.Workers)
 			if working >= int64(workerCnt) && sleeping < 1 && workerCnt < s.MaxWorkers {
-				s.SpawnWorker(workerInputs)
+				s.SpawnWorker(nil)
 			}
-			workerInputs <- x
+			scheduleChan <- x
 		}
 	}
 }
 
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
-	inputChannel := core.NewInput(inputConfig)
 	workload := OpenWorkload{
-		BaseWorkload: core.NewBaseWorkload(maker, output),
+		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, core.WorkloadOpen),
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
-		Input:        inputChannel,
 	}
 	return &workload
 }

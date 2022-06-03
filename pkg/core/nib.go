@@ -6,7 +6,7 @@ import (
 )
 
 type Nib interface {
-	Punch(item *InputItem) *OutputItem
+	Punch(item *PayloadItem) *OutputItem
 }
 
 type NibMaker = func() Nib
@@ -24,7 +24,7 @@ type NibMaker = func() Nib
 type DummyNib struct {
 }
 
-func (d DummyNib) Punch(item *InputItem) *OutputItem {
+func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 	start := time.Now()
 	log.Debugf("Processed payload: %s", item.Payload)
 	end := time.Now()

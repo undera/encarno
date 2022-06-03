@@ -78,16 +78,17 @@ type Worker struct {
 	Nib            Nib
 	StartTime      time.Time
 	Abort          <-chan struct{}
-	Input          InputChannel
+	InputPayload   InputChannel
+	InputSchedule  ScheduleChannel
 	Output         Output
-	values         map[string][]byte
+	Values         map[string][]byte
 	Finished       bool
 	IterationCount int
 	Status         Status
 }
 
 func (w *Worker) Run() {
-	timeTracker := TimeTracker{Stamp: time.Now()}
+	timeTracker := TimeTracker{}
 outer:
 	for {
 		// TODO: only measure single iteration with time tracker, record its ratio into result
@@ -96,51 +97,56 @@ outer:
 			log.Debugf("Aborting worker: %s", w.Name)
 			break outer
 		default:
-			timeTracker.Switch()
-			item := <-w.Input
-			timeTracker.Switch()
-			if item == nil {
-				break outer
-			}
-
-			w.Status.IncWorking()
-			w.IterationCount += 1
-			item.ReplaceValues(w.values)
-
-			expectedStart := w.StartTime.Add(item.TimeOffset)
-			curTime := time.Now()
-			delay := expectedStart.Sub(curTime)
-			if delay > 0 {
-				log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
-				w.Status.IncSleeping()
-				timeTracker.Switch()
-				time.Sleep(delay)
-				timeTracker.Switch()
-				w.Status.DecSleeping()
-			}
-
-			w.Status.IncBusy()
-			res := w.Nib.Punch(item)
-			res.StartMissed = res.StartTime.Sub(expectedStart)
-			res.ExtractValues(item.RegexOut, w.values)
-			w.Output.Push(res)
-			w.Status.DecBusy()
-			w.Status.DecWorking()
+			w.Iteration(&timeTracker)
 		}
 	}
 	log.Debugf("Worker finished: %s", w.Name)
 	w.Finished = true
+	// TODO: somehow notify workers array/count
 }
 
-func NewBasicWorker(name string, abort chan struct{}, input InputChannel, output Output, startTime time.Time, nib Nib, status Status) *Worker {
+func (w *Worker) Iteration(timeTracker *TimeTracker) {
+	timeTracker.Reset()
+	timeTracker.Sleeping()
+	offset := <-w.InputSchedule
+	timeTracker.Working()
+
+	w.Status.IncWorking()
+	w.IterationCount += 1
+
+	item := <-w.InputPayload
+	item.ReplaceValues(w.Values)
+
+	expectedStart := w.StartTime.Add(offset)
+	delay := expectedStart.Sub(time.Now())
+	if delay > 0 {
+		log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
+		w.Status.IncSleeping()
+		timeTracker.Sleeping()
+		time.Sleep(delay)
+		timeTracker.Working()
+		w.Status.DecSleeping()
+	}
+
+	w.Status.IncBusy()
+	res := w.Nib.Punch(item)
+	res.StartMissed = res.StartTime.Sub(expectedStart)
+	res.ExtractValues(item.RegexOut, w.Values)
+	w.Output.Push(res)
+	w.Status.DecBusy()
+	w.Status.DecWorking()
+}
+
+func NewBasicWorker(name string, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {
 	b := &Worker{
-		Name:      name,
-		Nib:       nib,
-		Abort:     abort,
-		Input:     input,
-		Output:    output,
-		StartTime: startTime,
-		Status:    status,
+		Name:          name,
+		Nib:           wl.NibMaker(),
+		Abort:         abort,
+		InputPayload:  wl.InputPayload(),
+		InputSchedule: scheduleChan,
+		Output:        wl.Output,
+		StartTime:     wl.StartTime,
+		Status:        wl.Status,
 	}
 	return b
 }
@@ -152,15 +158,19 @@ type TimeTracker struct {
 	SpentSleeping time.Duration
 }
 
-func (t *TimeTracker) Switch() {
-	sub := time.Now().Sub(t.Stamp)
-	//log.Debugf("Inc: %v %d", t.IsSleeping, sub)
-	if t.IsSleeping {
-		t.SpentSleeping += sub
-	} else {
-		t.SpentWorking += sub
-	}
-	t.IsSleeping = !t.IsSleeping
+func (t *TimeTracker) Working() {
+	t.SpentSleeping += time.Now().Sub(t.Stamp)
+	t.Stamp = time.Now()
+}
+
+func (t *TimeTracker) Sleeping() {
+	t.SpentWorking += time.Now().Sub(t.Stamp)
+	t.Stamp = time.Now()
+}
+
+func (t *TimeTracker) Reset() {
+	t.SpentWorking = 0
+	t.SpentSleeping = 0
 	t.Stamp = time.Now()
 }
 
