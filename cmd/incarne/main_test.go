@@ -3,6 +3,7 @@ package main
 import (
 	log "github.com/sirupsen/logrus"
 	"incarne/pkg/core"
+	"os"
 	"testing"
 	"time"
 )
@@ -29,11 +30,18 @@ func TestOpen(t *testing.T) {
 }
 
 func TestClosed(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
+	resultFile, err := os.CreateTemp(os.TempDir(), "result_*.ldjson")
+	if err != nil {
+		panic(err)
+	}
+	resultFile.Close()
 
 	c := core.Configuration{
-		Input:  core.InputConf{},
-		Output: core.OutputConf{},
+		Input: core.InputConf{},
+		Output: core.OutputConf{
+			LDJSONFile: resultFile.Name(),
+		},
 		Workers: core.WorkerConf{
 			Mode: core.WorkloadClosed,
 			WorkloadSchedule: []core.WorkloadLevel{

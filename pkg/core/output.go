@@ -1,8 +1,11 @@
 package core
 
 import (
+	"bufio"
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -61,25 +64,46 @@ type MultiFileOutput struct {
 	// write small binary results
 	// write full request/response for debugging
 	// write only failures request/response
+	pipe chan *OutputItem
 }
 
 func (m *MultiFileOutput) Start(output OutputConf) {
-	// TODO: do we need it?
+	go m.Background()
 }
 
 func (m *MultiFileOutput) Push(res *OutputItem) {
+	m.pipe <- res
+}
+
+func (m *MultiFileOutput) Background() {
+	for {
+		res := <-m.pipe
+		for _, out := range m.Outs {
+			out.Push(res)
+		}
+	}
+
 	for _, out := range m.Outs {
-		out.Push(res)
+		out.Close()
 	}
 }
 
 func NewMultiOutput(conf OutputConf) Output {
 	out := MultiFileOutput{
 		Outs: make([]SingleOut, 0),
+		pipe: make(chan *OutputItem),
 	}
 
 	if conf.LDJSONFile != "" {
-		out.Outs = append(out.Outs, &LDJSONOut{})
+		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		out.Outs = append(out.Outs, &LDJSONOut{
+			fd:     file,
+			writer: bufio.NewWriter(file),
+		})
 	}
 
 	return &out
@@ -91,14 +115,26 @@ type SingleOut interface {
 }
 
 type LDJSONOut struct {
+	writer *bufio.Writer
+	fd     *os.File
 }
 
 func (L *LDJSONOut) Push(item *OutputItem) {
-	//TODO implement me
-	panic("implement me")
+	data, err := json.Marshal(item)
+	if err != nil {
+		panic(err)
+	}
+	data = append(data, 13) // \r\n
+	data = append(data, 10) // \n
+
+	_, err = L.writer.Write(data)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (L *LDJSONOut) Close() {
-	//TODO implement me
-	panic("implement me")
+	L.writer.
+		Flush()
+	L.fd.Close()
 }
