@@ -139,6 +139,8 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 	res := w.Nib.Punch(item)
 	res.StartMissed = res.StartTime.Sub(expectedStart)
 	res.ExtractValues(item.RegexOut, w.Values)
+	res.ReqBytes = item.Payload
+	res.Label = item.Label
 	w.Output.Push(res)
 	w.Status.DecBusy()
 	w.Status.DecWorking()

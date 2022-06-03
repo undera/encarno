@@ -25,6 +25,8 @@ type Output interface {
 type OutputItem struct {
 	SentBytesCount int
 	RespBytesCount int
+	Label          string
+	ReqBytes       []byte
 	RespBytes      []byte
 	Error          error
 	Status         int

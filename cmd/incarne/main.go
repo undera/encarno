@@ -74,7 +74,7 @@ func handleSignals() {
 	go func() {
 		select {
 		case s := <-signalChanel:
-			log.Infof("Got signal: %v", s.String())
+			log.Infof("Got signal %d: %v", s, s)
 			if !alreadyHandlingSignal {
 				alreadyHandlingSignal = true
 
