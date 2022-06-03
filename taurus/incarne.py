@@ -190,7 +190,7 @@ class IncarneKPIReader(ResultsReader):
             except JSONDecodeError:
                 self.log.warning("Failed to decode JSON line: %s", traceback.format_exc())
                 continue
-                
+
             label = row["Label"]
 
             try:
@@ -202,7 +202,7 @@ class IncarneKPIReader(ResultsReader):
                 raise ToolError("Reader: failed record: %s" % row)
 
             error = row["Error"]
-            rcd = row["Status"]
+            rcd = str(row["Status"])
 
             tstmp = int(isoparse(row["StartTime"]).timestamp())
 

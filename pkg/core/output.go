@@ -20,6 +20,7 @@ type OutputConf struct {
 type Output interface {
 	Start(output OutputConf)
 	Push(res *OutputItem)
+	Close()
 }
 
 type OutputItem struct {
@@ -69,6 +70,12 @@ type MultiFileOutput struct {
 	pipe chan *OutputItem
 }
 
+func (m *MultiFileOutput) Close() {
+	for _, out := range m.Outs {
+		out.Close()
+	}
+}
+
 func (m *MultiFileOutput) Start(output OutputConf) {
 	go m.Background()
 }
@@ -83,10 +90,6 @@ func (m *MultiFileOutput) Background() {
 		for _, out := range m.Outs {
 			out.Push(res)
 		}
-	}
-
-	for _, out := range m.Outs {
-		out.Close()
 	}
 }
 
@@ -137,7 +140,6 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 }
 
 func (L *LDJSONOut) Close() {
-	L.writer.
-		Flush()
+	L.writer.Flush()
 	L.fd.Close()
 }

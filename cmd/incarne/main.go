@@ -95,6 +95,7 @@ func Run(config core.Configuration) {
 
 	workload := NewWorkload(config.Workers, config.Input, nibMaker, output)
 	workload.Run()
+	output.Close()
 }
 
 func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
