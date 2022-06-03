@@ -95,6 +95,7 @@ func NewMultiOutput(conf OutputConf) Output {
 	}
 
 	if conf.LDJSONFile != "" {
+		log.Infof("Opening result file for writing: %s", conf.LDJSONFile)
 		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)

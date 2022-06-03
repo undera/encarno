@@ -13,4 +13,4 @@ execution:
 
 scenarios:
   simple:
-    nib: dummy
+    protocol: dummy

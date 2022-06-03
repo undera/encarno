@@ -47,6 +47,7 @@ func main() {
 }
 
 func LoadConfig(path string) core.Configuration {
+	log.Infof("Loading config file: %s", path)
 	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)
