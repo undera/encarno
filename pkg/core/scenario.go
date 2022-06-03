@@ -8,7 +8,7 @@ import (
 
 // WorkloadLevel arrays may be used to specify workload scenario (warmup, ramp-up, steps, steady)
 type WorkloadLevel struct {
-	Level  int
+	Level  float64
 	RampUp time.Duration
 	Steady time.Duration
 }
@@ -28,15 +28,14 @@ type WorkerConf struct {
 }
 
 type BaseWorkload struct {
-	Workers       []*Worker
-	NibMaker      NibMaker
-	StartTime     time.Time
-	Output        Output
-	Status        Status
-	InputPayload  func() InputChannel
-	InputSchedule ScheduleChannel
-	Scenario      []WorkloadLevel
-	cnt           int
+	Workers      []*Worker
+	NibMaker     NibMaker
+	StartTime    time.Time
+	Output       Output
+	Status       Status
+	InputPayload func() InputChannel
+	Scenario     []WorkloadLevel
+	cnt          int
 }
 
 func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
@@ -47,6 +46,26 @@ func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	worker := NewBasicWorker(name, abort, s, scheduleChan)
 	s.Workers = append(s.Workers, worker)
 	go worker.Run()
+}
+
+func (s *BaseWorkload) GenerateSchedule() ScheduleChannel {
+	ch := make(ScheduleChannel)
+	go func() {
+		curLevel := float64(0)
+		curOffset := time.Duration(0)
+		for _, step := range s.Scenario {
+			if step.Level > 0 {
+			}
+
+			if step.Steady > 0 {
+
+			}
+
+			ch <- offset
+		}
+		close(ch)
+	}()
+	return ch
 }
 
 func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, mode WorkloadMode) BaseWorkload {
@@ -64,12 +83,11 @@ func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, mode 
 	}
 
 	return BaseWorkload{
-		Workers:       make([]*Worker, 0),
-		NibMaker:      maker,
-		StartTime:     time.Now(),
-		Output:        output,
-		Status:        &StatusImpl{},
-		InputPayload:  payloadGetter,
-		InputSchedule: make(chan time.Duration),
+		Workers:      make([]*Worker, 0),
+		NibMaker:     maker,
+		StartTime:    time.Now(),
+		Output:       output,
+		Status:       &StatusImpl{},
+		InputPayload: payloadGetter,
 	}
 }

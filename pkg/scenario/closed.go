@@ -27,10 +27,26 @@ func (s *ClosedWorkload) Run() {
 		}
 	}()
 
-	for _, milestone := range s.Scenario {
-		_ = milestone
+	for offset := range s.GenerateSchedule() {
+		delay := s.StartTime.Add(offset).Sub(time.Now())
+		if delay > 0 {
+			log.Debugf("Sleeping %v before starting new worker", delay)
+			time.Sleep(delay) // todo: make it cancelable
+		}
 		s.SpawnWorker(sched)
 	}
+
+	duration := time.Duration(0)
+	for _, item := range s.Scenario {
+		duration += item.RampUp + item.Steady
+	}
+
+	delay := s.StartTime.Add(duration).Sub(time.Now())
+	if delay > 0 {
+		log.Debugf("Sleeping %v to wait for end", delay)
+		time.Sleep(delay) // todo: make it cancelable
+	}
+
 	log.Infof("Closed workload scenario is complete")
 }
 

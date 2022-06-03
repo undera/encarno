@@ -123,7 +123,7 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) {
 		log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
 		w.Status.IncSleeping()
 		timeTracker.Sleeping()
-		time.Sleep(delay)
+		time.Sleep(delay) // todo: make it cancelable
 		timeTracker.Working()
 		w.Status.DecSleeping()
 	}

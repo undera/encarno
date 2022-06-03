@@ -38,9 +38,9 @@ func (s *OpenWorkload) Run() {
 
 	s.SpawnInitial(scheduleChan)
 
-	for x := range s.InputSchedule {
+	for offset := range s.GenerateSchedule() {
 		select {
-		case scheduleChan <- x: // try putting if somebody is reading it
+		case scheduleChan <- offset: // try putting if somebody is reading it
 			continue
 		default:
 			working := s.Status.GetWorking()
@@ -50,9 +50,14 @@ func (s *OpenWorkload) Run() {
 			if working >= int64(workerCnt) && sleeping < 1 && workerCnt < s.MaxWorkers {
 				s.SpawnWorker(nil)
 			}
-			scheduleChan <- x
+			scheduleChan <- offset
 		}
 	}
+
+	// TODO: make sure workers have finished before exiting
+
+	close(scheduleChan)
+	log.Infof("Open workload scenario is complete")
 }
 
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
