@@ -8,9 +8,9 @@ import (
 
 // WorkloadLevel arrays may be used to specify workload scenario (warmup, ramp-up, steps, steady)
 type WorkloadLevel struct {
-	Level  float64
-	RampUp time.Duration
-	Steady time.Duration
+	LevelStart float64
+	LevelEnd   float64
+	Duration   time.Duration
 }
 
 type WorkloadMode = string
@@ -46,26 +46,6 @@ func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	worker := NewBasicWorker(name, abort, s, scheduleChan)
 	s.Workers = append(s.Workers, worker)
 	go worker.Run()
-}
-
-func (s *BaseWorkload) GenerateSchedule() ScheduleChannel {
-	ch := make(ScheduleChannel)
-	go func() {
-		curLevel := float64(0)
-		curOffset := time.Duration(0)
-		for _, step := range s.Scenario {
-			if step.Level > 0 {
-			}
-
-			if step.Steady > 0 {
-
-			}
-
-			ch <- offset
-		}
-		close(ch)
-	}()
-	return ch
 }
 
 func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, mode WorkloadMode) BaseWorkload {

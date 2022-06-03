@@ -15,6 +15,7 @@ type InputConf struct {
 	ScheduleFile  string
 	StringsFile   string
 	EnableRegexes bool
+	Predefined    Input
 }
 
 type InputChannel chan *PayloadItem
@@ -51,6 +52,10 @@ func (r *ExtractRegex) String() string {
 }
 
 func NewInput(config InputConf) InputChannel {
+	if config.Predefined != nil {
+		return config.Predefined.Start(config)
+	}
+
 	ch := make(InputChannel)
 	go func() {
 		for i := 0; i < 1000; i++ {

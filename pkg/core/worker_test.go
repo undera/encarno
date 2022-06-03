@@ -11,18 +11,18 @@ func TestWorker(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	abort := make(chan struct{})
-	inputs := make(InputChannel)
+	inputs := make(ScheduleChannel)
 	output := DummyOutput{
 		queue: make(chan *OutputItem),
 	}
 	go output.bg()
-	worker := NewBasicWorker("test", abort, inputs, nil)
+	worker := NewBasicWorker("test", abort, &BaseWorkload{}, inputs)
 	go worker.Run()
 
 	for i := time.Duration(0); i < 1000; i++ {
-		inputs <- &PayloadItem{TimeOffset: i * 1 * time.Millisecond}
+		inputs <- i * 1 * time.Millisecond
 	}
-	inputs <- nil
+	inputs <- -1
 }
 
 type DummyOutput struct {

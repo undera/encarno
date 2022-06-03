@@ -181,5 +181,6 @@ func (t *TimeTracker) Reset() {
 
 type WorkerSpawner interface {
 	Run()
+	GenerateSchedule() ScheduleChannel
 	Interrupt()
 }

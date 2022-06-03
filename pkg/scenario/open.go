@@ -60,6 +60,11 @@ func (s *OpenWorkload) Run() {
 	log.Infof("Open workload scenario is complete")
 }
 
+func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
 	workload := OpenWorkload{
 		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, core.WorkloadOpen),

@@ -45,3 +45,6 @@
   - http
   - https
   - udp
+
+
+To build the binary: `go build -o bin/incarne cmd/incarne/main.go`

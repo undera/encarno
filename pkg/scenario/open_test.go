@@ -13,21 +13,12 @@ func init() {
 }
 
 func TestExternal(t *testing.T) {
-	scen := OpenWorkload{
-		BaseWorkload: BaseWorkload{
-			Workers:   make([]core.Worker, 0),
-			Input:     &DummyInput{},
-			Output:    &DummyOutput{},
-			StartTime: time.Now(),
-			NibMaker: func() core.Nib {
-				nib := DummyNib{}
-				return &nib
-			},
-		},
-		MinWorkers: 0,
-		MaxWorkers: 0,
+	maker := func() core.Nib {
+		nib := DummyNib{}
+		return &nib
 	}
-	scen.Spawner = &scen
+
+	scen := NewOpenWorkload(core.WorkerConf{}, core.InputConf{Predefined: &DummyInput{}}, maker, &dummyOutput{})
 
 	scen.Run()
 	log.Infof("Final sleep")
@@ -37,6 +28,16 @@ func TestExternal(t *testing.T) {
 type DummyInput struct {
 }
 
+func (d *DummyInput) Start(input core.InputConf) core.InputChannel {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *DummyInput) Clone() core.Input {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (d *DummyInput) Generator() core.InputChannel {
 	ch := make(core.InputChannel)
 	go func() {
@@ -44,9 +45,9 @@ func (d *DummyInput) Generator() core.InputChannel {
 		for i := 0; i < 1000; i++ {
 			log.Infof("Iteration %d", i)
 			item := &core.PayloadItem{
-				TimeOffset: time.Duration(i) * 1000 * time.Millisecond,
-				Label:      "label#" + strconv.Itoa(i%3),
-				Payload:    []byte("data"),
+				//TimeOffset: time.Duration(i) * 1000 * time.Millisecond,
+				Label:   "label#" + strconv.Itoa(i%3),
+				Payload: []byte("data"),
 			}
 
 			ch <- item
@@ -58,12 +59,25 @@ func (d *DummyInput) Generator() core.InputChannel {
 type DummyNib struct {
 }
 
-func (n *DummyNib) Punch(payload []byte) *core.OutputItem {
+func (n *DummyNib) Punch(item *core.PayloadItem) *core.OutputItem {
 	start := time.Now()
-	log.Infof("Processed payload: %s", payload)
+	log.Infof("Processed payload: %s", item.Payload)
 	end := time.Now()
 	return &core.OutputItem{
 		StartTime: start,
 		Elapsed:   end.Sub(start),
 	}
+}
+
+type dummyOutput struct {
+}
+
+func (d dummyOutput) Start(output core.OutputConf) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d dummyOutput) Push(res *core.OutputItem) {
+	//TODO implement me
+	panic("implement me")
 }
