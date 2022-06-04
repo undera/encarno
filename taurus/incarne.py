@@ -172,6 +172,7 @@ class IncarneKPIReader(ResultsReader):
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, parent_logger=self.log)
         self.stats_reader = IncarneHealthReader(health_filename, parent_logger)
+        self.partial_buffer = ""
 
     def _read(self, last_pass=False):
         """
@@ -185,6 +186,13 @@ class IncarneKPIReader(ResultsReader):
         lines = self.file.get_lines(size=1024 * 1024, last_pass=last_pass)
 
         for line in lines:
+            if not line.endswith("\n"):
+                self.partial_buffer += line
+                continue
+                
+            line = "%s%s" % (self.partial_buffer, line)
+            self.partial_buffer = ""
+
             try:
                 row = json.loads(line)
             except JSONDecodeError:

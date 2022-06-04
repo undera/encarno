@@ -14,3 +14,9 @@ execution:
 scenarios:
   simple:
     protocol: dummy
+
+
+services:
+  - module: shellexec
+    prepare:
+      - go build -o bin/incarne cmd/incarne/main.go
