@@ -1,9 +1,4 @@
 ---
-modules:
-  incarne:
-    path: bin/incarne
-
-
 execution:
   - executor: incarne
     scenario: simple
@@ -13,10 +8,18 @@ execution:
 
 scenarios:
   simple:
-    protocol: dummy
-
+    default-address: http://localhost:8070/
+    requests:
+      - /
+      - /gimme404
+      - http://localhost/
+      - http://127.0.0.1:8070/
 
 services:
   - module: shellexec
     prepare:
       - go build -o bin/incarne cmd/incarne/main.go
+
+modules:
+  incarne:
+    path: bin/incarne

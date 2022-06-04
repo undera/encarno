@@ -107,11 +107,7 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 		}
 	case "http":
 		httpConf := http.ParseHTTPConf(protocol)
-		pool := &http.ConnPool{
-			Idle:           make(map[string]http.ConnChan),
-			MaxConnections: httpConf.MaxConnections,
-			Timeout:        httpConf.Timeout * time.Second,
-		}
+		pool := http.NewConnectionPool(httpConf.MaxConnections, httpConf.Timeout*time.Second)
 
 		return func() core.Nib {
 			return &http.Nib{

@@ -3,8 +3,9 @@ import json
 import traceback
 from json import JSONDecodeError
 from os import strerror
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
+import bzt.engine
 import yaml
 from bzt import ToolError, TaurusInternalException, TaurusConfigError
 from bzt.engine import ScenarioExecutor, HavingInstallableTools
@@ -29,8 +30,8 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
         self.stdout = open(self.engine.create_artifact("incarne", ".out"), 'w')
         self.stderr = open(self.engine.create_artifact("incarne", ".err"), 'w')
         self.generator = IncarneFilesGenerator(self, self.log)
-        self.generator.generate_config(self.get_scenario(), self.get_load())
         self.generator.generate_payload(self.get_scenario())
+        self.generator.generate_config(self.get_scenario(), self.get_load())
 
         self.reader = self.generator.get_results_reader()
         if isinstance(self.engine.aggregator, ConsolidatingAggregator):
@@ -130,6 +131,7 @@ class IncarneFilesGenerator(object):
         self.engine = executor.engine
         self.settings = executor.settings
         self.execution = executor.execution
+        self.payload_file = None
 
     def generate_config(self, scenario, load):
         self.kpi_file = self.engine.create_artifact("incarne_results", ".ldjson")
@@ -139,7 +141,7 @@ class IncarneFilesGenerator(object):
                 "driver": scenario.get('protocol', 'http')
             },
             "input": {
-
+                "payloadfile": self.payload_file,
             },
             "output": {
                 "ldjsonfile": self.kpi_file
@@ -178,11 +180,11 @@ class IncarneFilesGenerator(object):
     def get_results_reader(self):
         return IncarneKPIReader(self.kpi_file, self.log, self.stats_file)
 
-    def generate_payload(self, scenario):
+    def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
 
         if not self.payload_file:  # generation from requests
-            self.payload_file = self.engine.create_artifact("pbench", '.src')
+            self.payload_file = self.engine.create_artifact("incarne", '.ii')
             self.log.info("Generating payload file: %s", self.payload_file)
             self._generate_payload_inner(scenario)  # raises if there is no requests
 
@@ -192,23 +194,35 @@ class IncarneFilesGenerator(object):
         with open(self.payload_file, 'w') as fds:
             for request in requests:
                 if not isinstance(request, HTTPRequest):
-                    msg = "PBench payload generator doesn't support '%s' blocks, skipping"
+                    msg = "Payload generator doesn't support '%s' blocks, skipping"
                     self.log.warning(msg, request.NAME)
                     continue
 
-                http = self._build_request(request, scenario)
-                fds.write("%s %s\r\n%s\r\n" % (len(http), request.label.replace(' ', '_'), http))
+                host, http = self._build_request(request, scenario)
+
+                metadata = {
+                    "PayloadLen": len(http.encode('utf-8')),
+                    "Hostname": host,
+                    "Label": request.label,
+                }
+
+                fds.write(json.dumps(metadata))  # metadata
+                fds.write("\r\n")  # sep
+                fds.write(http)  # payload
+                fds.write("\r\n")  # sep
+
                 num_requests += 1
 
         if not num_requests:
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
     def _build_request(self, request, scenario):
-        path = self._get_request_path(request, scenario)
+        host, path = self._get_request_path(request, scenario)
         http = "%s %s HTTP/1.1\r\n" % (request.method, path)
-        headers = BetterDict.from_dict({"Host": self.hostname})
+        headers = BetterDict.from_dict({"Host": host})
         if not scenario.get("keepalive", True):
             headers.merge({"Connection": 'close'})  # HTTP/1.1 implies keep-alive by default
+
         body = ""
         if isinstance(request.body, dict):
             if request.method != "GET":
@@ -227,37 +241,25 @@ class IncarneFilesGenerator(object):
         for header, value in headers.items():
             http += "%s: %s\r\n" % (header, value)
         http += "\r\n%s" % (body,)
-        return http
+        return host, http
 
     def _get_request_path(self, request, scenario):
-
         parsed_url = urlparse(request.url)
 
-        if not self._target.get("scheme"):
-            self._target["scheme"] = parsed_url.scheme
-
-        if not self._target.get("netloc"):
-            self._target["netloc"] = parsed_url.netloc
-
-        if parsed_url.scheme != self._target["scheme"] or parsed_url.netloc != self._target["netloc"]:
-            raise TaurusConfigError("Address port and host must be the same")
         path = parsed_url.path
         if parsed_url.query:
             path += "?" + parsed_url.query
         else:
             if request.method == "GET" and isinstance(request.body, dict):
                 path += "?" + urlencode(request.body)
+
         if not parsed_url.netloc:
-            parsed_url = parse.urlparse(scenario.get("default-address", ""))
+            parsed_url = urlparse(scenario.get("default-address", ""))
 
-        self.hostname = parsed_url.netloc.split(':')[0] if ':' in parsed_url.netloc else parsed_url.netloc
-        self.use_ssl = parsed_url.scheme == 'https'
-        if parsed_url.port:
-            self.port = parsed_url.port
-        else:
-            self.port = 443 if self.use_ssl else 80
+        hostname = parsed_url.netloc.split(':')[0] if ':' in parsed_url.netloc else parsed_url.netloc
+        hostname = parsed_url.scheme + "://" + hostname
 
-        return path if len(path) else '/'
+        return hostname, path if len(path) else '/'
 
 
 def ns2sec(val):

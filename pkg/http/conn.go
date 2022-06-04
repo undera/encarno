@@ -154,7 +154,11 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 
 	}
 	c, err := p.openConnection(hostname)
-	return newBufferedConn(c), err
+	if err == nil {
+		return newBufferedConn(c), nil
+	} else {
+		return nil, err
+	}
 }
 
 func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
@@ -170,19 +174,26 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
-	host, err := p.resolver.ResolveHost(ctx, parsed.Host)
+
+	host, port, foundSep := strings.Cut(parsed.Host, ":") // FIXME: what if it's already an ipv6?
+
+	host, err = p.resolver.ResolveHost(ctx, host)
 	if err != nil {
 		return nil, err
 	}
 
 	if parsed.Scheme == "https" {
-		if !strings.Contains(host, ":") { //FIXME: ipv6 won't work well
+		if foundSep { //FIXME: ipv6 won't work well
+			host = host + ":" + port
+		} else {
 			host = host + ":443"
 		}
 
 		return p.tlsDialer.DialContext(ctx, "tcp", host)
 	} else {
-		if !strings.Contains(host, ":") { //FIXME: ipv6 won't work well
+		if foundSep { //FIXME: ipv6 won't work well
+			host = host + ":" + port
+		} else {
 			host = host + ":80"
 		}
 
@@ -210,12 +221,7 @@ type RRResolver struct {
 	mx       sync.Mutex
 }
 
-func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, error) {
-	host, port, foundSep := strings.Cut(addr, ":") // FIXME: what if it's already an ipv6?
-	if !foundSep {
-		panic("The address must constain port: " + addr)
-	}
-
+func (r *RRResolver) ResolveHost(ctx context.Context, host string) (string, error) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -237,7 +243,7 @@ func (r *RRResolver) ResolveHost(ctx context.Context, addr string) (string, erro
 		ip = "[" + ip + "]"
 	}
 
-	return ip + ":" + port, nil
+	return ip, nil
 }
 
 type Conf struct {
