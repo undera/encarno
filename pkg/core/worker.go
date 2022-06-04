@@ -137,10 +137,16 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 
 	w.Status.IncBusy()
 	res := w.Nib.Punch(item)
+	res.StartTS = res.StartTime.Unix()
+	if res.Error != nil {
+		res.ErrorStr = res.Error.Error()
+	}
 	res.StartMissed = res.StartTime.Sub(expectedStart)
 	res.ExtractValues(item.RegexOut, w.Values)
 	res.ReqBytes = item.Payload
-	res.Label = item.Label
+	if item.Label != "" { // allow Nib to generate own label
+		res.Label = item.Label
+	}
 	w.Output.Push(res)
 	w.Status.DecBusy()
 	w.Status.DecWorking()

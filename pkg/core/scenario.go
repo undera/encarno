@@ -62,12 +62,13 @@ func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf
 		}
 	}
 
+	status := output.GetStatusObj()
 	return BaseWorkload{
 		Workers:      make([]*Worker, 0),
 		NibMaker:     maker,
 		StartTime:    time.Now(),
 		Output:       output,
-		Status:       &StatusImpl{},
+		Status:       status,
 		InputPayload: payloadGetter,
 		Scenario:     wconf.WorkloadSchedule,
 	}

@@ -1,7 +1,9 @@
 package core
 
 import (
-	log "github.com/sirupsen/logrus"
+	"errors"
+	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -25,11 +27,18 @@ type DummyNib struct {
 }
 
 func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
-	start := time.Now()
-	log.Debugf("Processed payload: %s", item.Payload)
-	end := time.Now()
-	return &OutputItem{
-		StartTime: start,
-		Elapsed:   end.Sub(start),
+	o := &OutputItem{
+		StartTime: time.Now(),
+		Status:    rand.Intn(5)*100 + 100,
+		Label:     "label#" + strconv.Itoa(rand.Intn(3)),
 	}
+
+	duration := time.Duration(rand.Intn(1000)) * time.Microsecond
+	time.Sleep(duration)
+
+	o.Elapsed = time.Now().Sub(o.StartTime)
+	if o.Elapsed > duration*10 {
+		o.Error = errors.New("timeout occured")
+	}
+	return o
 }

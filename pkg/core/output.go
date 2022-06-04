@@ -21,6 +21,7 @@ type Output interface {
 	Start(output OutputConf)
 	Push(res *OutputItem)
 	Close()
+	GetStatusObj() Status // TODO: this is not right to have it here
 }
 
 type OutputItem struct {
@@ -30,8 +31,11 @@ type OutputItem struct {
 	ReqBytes       []byte
 	RespBytes      []byte
 	Error          error
+	ErrorStr       string // for JSON reader
 	Status         int
 	StartTime      time.Time
+	StartTS        int64 // for result readers, to avoid date parsing
+	Concurrency    int64
 	ConnectTime    time.Duration
 	SentTime       time.Duration
 	FirstByteTime  time.Duration
@@ -61,13 +65,18 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 }
 
 type MultiFileOutput struct {
-	Outs []SingleOut
+	Outs   []SingleOut
+	Status Status
 
 	// get result from worker via channel
 	// write small binary results
 	// write full request/response for debugging
 	// write only failures request/response
 	pipe chan *OutputItem
+}
+
+func (m *MultiFileOutput) GetStatusObj() Status {
+	return m.Status
 }
 
 func (m *MultiFileOutput) Close() {
@@ -81,6 +90,7 @@ func (m *MultiFileOutput) Start(output OutputConf) {
 }
 
 func (m *MultiFileOutput) Push(res *OutputItem) {
+	res.Concurrency = m.Status.GetWorking()
 	m.pipe <- res
 }
 
@@ -93,10 +103,11 @@ func (m *MultiFileOutput) Background() {
 	}
 }
 
-func NewMultiOutput(conf OutputConf) Output {
+func NewMultiOutput(conf OutputConf, status Status) Output {
 	out := MultiFileOutput{
-		Outs: make([]SingleOut, 0),
-		pipe: make(chan *OutputItem),
+		Outs:   make([]SingleOut, 0),
+		Status: status,
+		pipe:   make(chan *OutputItem),
 	}
 
 	if conf.LDJSONFile != "" {

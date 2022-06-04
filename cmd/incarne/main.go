@@ -88,7 +88,7 @@ func handleSignals() {
 }
 
 func Run(config core.Configuration) {
-	output := core.NewMultiOutput(config.Output)
+	output := core.NewMultiOutput(config.Output, &core.StatusImpl{})
 	output.Start(config.Output)
 
 	nibMaker := NewNibMaker(config.Protocol)
