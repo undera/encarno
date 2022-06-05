@@ -317,7 +317,7 @@ class IncarneKPIReader(ResultsReader):
             tstmp = int(row["StartTS"])
 
             if tstmp != self.last_ts:
-                self.log.info("New TS: %s", tstmp)
+                self.log.debug("New TS: %s", tstmp)
                 self.last_ts = tstmp
 
             byte_count = row["SentBytesCount"] + row["RespBytesCount"]

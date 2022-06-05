@@ -47,4 +47,42 @@
   - udp
 
 
+Test run: `PYTHONPATH=taurus bzt taurus/incarne-module.yml taurus/test.yml -report`
+
 To build the binary: `go build -o bin/incarne cmd/incarne/main.go`
+
+Dummy config:
+```yaml
+---
+execution:
+  - executor: incarne
+    scenario: simple
+    concurrency: 10
+    ramp-up: 30s
+    hold-for: 1m
+
+scenarios:
+  simple:
+    protocol: dummy
+
+
+services:
+  - module: shellexec
+    prepare:
+      - go build -o bin/incarne cmd/incarne/main.go
+
+modules:
+  incarne:
+    path: bin/incarne
+
+```
+
+
+## TODO
+
+- graceful shutdown: wait for output to flush and close, interrupt workers, close input
+- open workload math
+- health stats
+- scripting elements in input, whole scripting flow
+- URLs from file input type (access.log)
+- explicit option of shared input. To allow processing payload file only once.
