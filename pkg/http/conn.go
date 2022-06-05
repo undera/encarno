@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	"incarne/pkg/core"
 	"io"
 	"net"
 	"net/url"
@@ -27,38 +25,56 @@ type BufferedConn struct {
 	Canceled        bool
 	readChunks      chan []byte
 	buf             []byte
+	loopDone        bool
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
-	conn := BufferedConn{
+	conn := &BufferedConn{
 		Conn:            c,
 		ReadRecordLimit: 1024 * 1024,
 		buf:             make([]byte, 4096),
 		readChunks:      make(chan []byte),
 	}
 	go conn.readLoop()
-	return &conn
+	return conn
 }
 
 func (r *BufferedConn) readLoop() {
 	log.Debugf("Start reading loop")
+	defer func() {
+		log.Debugf("Closing connection")
+		err := r.Conn.Close()
+		if err != nil {
+			log.Warningf("Failed to close connection: %s", err)
+		}
+	}()
+
 	for !r.Canceled {
 		n, err := r.Conn.Read(r.buf)
+		if err != nil {
+			r.Err = err
+			r.Canceled = true // but we still should finish the iteration
+
+			err2 := r.Err
+			s := fmt.Sprintf("%s", err2)
+			if s == "<nil>" {
+				log.Warningf("If you see this, report to developers. It's a tricky bug reproduced.")
+				log.Warningf("Pointer details: %p %s %p %p", r, s, err2, r.Err)
+			}
+		}
 
 		if r.ReadLen == 0 {
 			r.FirstRead = time.Now()
 		}
 
 		r.ReadLen += n
-		log.Debugf("Read %d bytes, %d total: %v", n, r.ReadLen, err)
+		log.Debugf("Read %d/%d bytes, err: %v", n, r.ReadLen, err)
 
 		if (r.ReadRecordLimit <= 0 || r.ReadLen <= r.ReadRecordLimit) && n > 0 {
-			r.ReadRecorded.Write(r.buf[:n])
-		}
-
-		if err != nil {
-			r.Err = err
-			r.Canceled = true
+			_, err := r.ReadRecorded.Write(r.buf[:n])
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		r.readChunks <- r.buf[:n]
@@ -69,26 +85,27 @@ func (r *BufferedConn) readLoop() {
 	if err != nil {
 		log.Warningf("Error while trying to close connection: %s", err)
 	}
+	r.loopDone = true
 }
 
-func (r *BufferedConn) Read(p []byte) (n int, err error) {
+func (r *BufferedConn) Read(p []byte) (int, error) {
 	if r.Err != nil {
+		for err2 := r.Err; fmt.Sprintf("%s", err2) == "<nil>"; err2 = r.Err {
+			log.Warningf("Broken err pointer: %p %p %p", r, err2, r.Err)
+			_ = err2
+		}
+		r.Err.Error()
 		return 0, r.Err
 	}
 
 	buf := <-r.readChunks
-	n = copy(p, buf)
+	n := copy(p, buf)
 	return n, nil
 }
 
 func (r *BufferedConn) Close() error {
-	log.Debugf("Closing connection")
 	if !r.Canceled {
 		r.Canceled = true
-	}
-
-	if r.Err != nil {
-		return r.Conn.Close()
 	}
 	return nil
 }
@@ -131,6 +148,7 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 }
 
 func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
+	// lazy initialize per-host pool
 	var ch ConnChan
 	if c, ok := p.Idle[hostname]; ok {
 		ch = c
@@ -244,21 +262,4 @@ func (r *RRResolver) ResolveHost(ctx context.Context, host string) (string, erro
 	}
 
 	return ip, nil
-}
-
-type Conf struct {
-	MaxConnections int
-	Timeout        time.Duration
-}
-
-func ParseHTTPConf(conf core.ProtoConf) Conf {
-	cfg := Conf{
-		MaxConnections: 1,
-		Timeout:        1 * time.Second,
-	}
-	err := yaml.Unmarshal(conf.FullText, &cfg)
-	if err != nil {
-		panic(err)
-	}
-	return cfg
 }
