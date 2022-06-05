@@ -26,6 +26,7 @@ type BufferedConn struct {
 	readChunks      chan []byte
 	buf             []byte
 	loopDone        bool
+	mxErr           *sync.Mutex
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
@@ -34,6 +35,7 @@ func newBufferedConn(c net.Conn) *BufferedConn {
 		ReadRecordLimit: 1024 * 1024,
 		buf:             make([]byte, 4096),
 		readChunks:      make(chan []byte),
+		mxErr:           new(sync.Mutex),
 	}
 	go conn.readLoop()
 	return conn
@@ -52,15 +54,8 @@ func (r *BufferedConn) readLoop() {
 	for !r.Canceled {
 		n, err := r.Conn.Read(r.buf)
 		if err != nil {
-			r.Err = err
+			r.setErr(err)
 			r.Canceled = true // but we still should finish the iteration
-
-			err2 := r.Err
-			s := fmt.Sprintf("%s", err2)
-			if s == "<nil>" {
-				log.Warningf("If you see this, report to developers. It's a tricky bug reproduced.")
-				log.Warningf("Pointer details: %p %s %p %p", r, s, err2, r.Err)
-			}
 		}
 
 		if r.ReadLen == 0 {
@@ -88,14 +83,22 @@ func (r *BufferedConn) readLoop() {
 	r.loopDone = true
 }
 
+func (r *BufferedConn) setErr(err error) {
+	r.mxErr.Lock()
+	defer r.mxErr.Unlock()
+	r.Err = err
+}
+
+func (r *BufferedConn) GetErr() error {
+	r.mxErr.Lock()
+	defer r.mxErr.Unlock()
+	return r.Err
+}
+
 func (r *BufferedConn) Read(p []byte) (int, error) {
-	if r.Err != nil {
-		for err2 := r.Err; fmt.Sprintf("%s", err2) == "<nil>"; err2 = r.Err {
-			log.Warningf("Broken err pointer: %p %p %p", r, err2, r.Err)
-			_ = err2
-		}
-		r.Err.Error()
-		return 0, r.Err
+	err := r.GetErr()
+	if err != nil {
+		return 0, err
 	}
 
 	buf := <-r.readChunks
@@ -159,10 +162,11 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 
 	select {
 	case conn := <-p.Idle[hostname]:
-		if conn.Err == io.EOF {
-			log.Debugf("Cannot reuse Idle connection: %v", conn.Err)
-		} else if conn.Err != nil {
-			log.Warningf("Cannot reuse Idle connection: %v", conn.Err)
+		err := conn.GetErr()
+		if err == io.EOF {
+			log.Debugf("Cannot reuse Idle connection: %v", err)
+		} else if err != nil {
+			log.Warningf("Cannot reuse Idle connection: %v", err)
 		} else {
 			log.Debugf("Reusing Idle connection to %s", hostname)
 			conn.Reset()
@@ -220,7 +224,7 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 }
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
-	if conn.Err == nil && !conn.Canceled {
+	if conn.GetErr() == nil && !conn.Canceled {
 		p.Idle[hostname] <- conn
 	}
 }
