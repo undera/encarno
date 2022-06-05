@@ -1,8 +1,6 @@
-import csv
 import json
 import traceback
 from json import JSONDecodeError
-from os import strerror
 from urllib.parse import urlencode, urlparse
 
 import bzt.engine
@@ -10,11 +8,10 @@ import yaml
 from bzt import ToolError, TaurusInternalException, TaurusConfigError
 from bzt.engine import ScenarioExecutor, HavingInstallableTools
 from bzt.modules import ExecutorWidget
-from bzt.modules.aggregator import ResultsReader, DataPoint, KPISet, ConsolidatingAggregator
+from bzt.modules.aggregator import ResultsReader, ConsolidatingAggregator
 from bzt.requests_model import HTTPRequest
 from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, dehumanize_time
 from bzt.utils import get_full_path, CALL_PROBLEMS
-from dateutil.parser import isoparse
 
 
 class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
@@ -221,9 +218,9 @@ class IncarneFilesGenerator(object):
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
     def _build_request(self, request, scenario):
-        host, path = self._get_request_path(request, scenario)
+        hostUrl, netloc, path = self._get_request_path(request, scenario)
         http = "%s %s HTTP/1.1\r\n" % (request.method, path)
-        headers = BetterDict.from_dict({"Host": host})
+        headers = BetterDict.from_dict({"Host": netloc})
         if not scenario.get("keepalive", True):
             headers.merge({"Connection": 'close'})  # HTTP/1.1 implies keep-alive by default
 
@@ -245,7 +242,7 @@ class IncarneFilesGenerator(object):
         for header, value in headers.items():
             http += "%s: %s\r\n" % (header, value)
         http += "\r\n%s" % (body,)
-        return host, http
+        return hostUrl, http
 
     def _get_request_path(self, request, scenario):
         parsed_url = urlparse(request.url)
@@ -260,10 +257,9 @@ class IncarneFilesGenerator(object):
         if not parsed_url.netloc:
             parsed_url = urlparse(scenario.get("default-address", ""))
 
-        hostname = parsed_url.netloc
-        hostname = parsed_url.scheme + "://" + hostname
+        hostname = parsed_url.scheme + "://" + parsed_url.netloc
 
-        return hostname, path if len(path) else '/'
+        return hostname, parsed_url.netloc, path if len(path) else '/'
 
 
 def ns2sec(val):
@@ -279,8 +275,8 @@ class IncarneKPIReader(ResultsReader):
         super().__init__()
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, parent_logger=self.log)
-        self.stats_reader = IncarneHealthReader(health_filename, parent_logger)
         self.partial_buffer = ""
+        self.last_ts = None
 
     def _read(self, last_pass=False):
         """
@@ -288,8 +284,6 @@ class IncarneKPIReader(ResultsReader):
 
         :type last_pass: bool
         """
-
-        self.stats_reader.read_file()
 
         lines = self.file.get_lines(size=1024 * 1024, last_pass=last_pass)
 
@@ -322,36 +316,10 @@ class IncarneKPIReader(ResultsReader):
 
             tstmp = int(row["StartTS"])
 
+            if tstmp != self.last_ts:
+                self.log.info("New TS: %s", tstmp)
+                self.last_ts = tstmp
+
             byte_count = row["SentBytesCount"] + row["RespBytesCount"]
             concur = row["Concurrency"]
             yield tstmp, label, concur, rtm, cnn, ltc, rcd, error, '', byte_count
-
-    def _calculate_datapoints(self, final_pass=False):
-        for point in super()._calculate_datapoints(final_pass):
-            concurrency = self.stats_reader.get_data(point[DataPoint.TIMESTAMP])
-
-            for label_data in point[DataPoint.CURRENT].values():
-                label_data[KPISet.CONCURRENCY] = concurrency
-
-            yield point
-
-
-class IncarneHealthReader(object):  # TODO: do we need it?
-    def __init__(self, filename, parent_logger):
-        super().__init__()
-        self.log = parent_logger.getChild(self.__class__.__name__)
-        self.file = FileReader(filename=filename, parent_logger=self.log)
-        self.buffer = ''
-        self.data = {}
-        self.last_data = 0
-
-    def read_file(self):
-        pass
-
-    def get_data(self, tstmp):
-        if tstmp in self.data:
-            self.last_data = self.data[tstmp]
-            return self.data[tstmp]
-        else:
-            # self.log.debug("No active instances info for %s", tstmp)
-            return self.last_data

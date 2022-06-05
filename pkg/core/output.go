@@ -28,13 +28,13 @@ type OutputItem struct {
 	SentBytesCount int
 	RespBytesCount int
 	Label          string
-	ReqBytes       []byte
-	RespBytes      []byte
-	Error          error
+	ReqBytes       []byte `json:"-"`
+	RespBytes      []byte `json:"-"`
+	Error          error  `json:"-"`
 	ErrorStr       string // for JSON reader
 	Status         int
-	StartTime      time.Time
-	StartTS        int64 // for result readers, to avoid date parsing
+	StartTime      time.Time `json:"-"`
+	StartTS        int64     // for result readers, to avoid date parsing
 	Concurrency    int64
 	ConnectTime    time.Duration
 	SentTime       time.Duration
