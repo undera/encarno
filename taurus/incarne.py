@@ -12,7 +12,7 @@ from bzt.engine import ScenarioExecutor, HavingInstallableTools
 from bzt.modules import ExecutorWidget
 from bzt.modules.aggregator import ResultsReader, DataPoint, KPISet, ConsolidatingAggregator
 from bzt.requests_model import HTTPRequest
-from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict
+from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, dehumanize_time
 from bzt.utils import get_full_path, CALL_PROBLEMS
 from dateutil.parser import isoparse
 
@@ -136,9 +136,13 @@ class IncarneFilesGenerator(object):
     def generate_config(self, scenario, load):
         self.kpi_file = self.engine.create_artifact("incarne_results", ".ldjson")
         self.stats_file = self.engine.create_artifact("incarne_health", ".ldjson")
+        timeout = dehumanize_time(scenario.get("timeout", "10s"))
+
         cfg = {
             "protocol": {
-                "driver": scenario.get('protocol', 'http')
+                "driver": scenario.get('protocol', 'http'),
+                "timeout": "%ss" % timeout,
+                "maxConnections": load.concurrency,
             },
             "input": {
                 "payloadfile": self.payload_file,
@@ -256,7 +260,7 @@ class IncarneFilesGenerator(object):
         if not parsed_url.netloc:
             parsed_url = urlparse(scenario.get("default-address", ""))
 
-        hostname = parsed_url.netloc.split(':')[0] if ':' in parsed_url.netloc else parsed_url.netloc
+        hostname = parsed_url.netloc
         hostname = parsed_url.scheme + "://" + hostname
 
         return hostname, path if len(path) else '/'

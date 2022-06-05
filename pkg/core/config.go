@@ -1,5 +1,9 @@
 package core
 
+import (
+	"time"
+)
+
 type Configuration struct {
 	Input    InputConf
 	Output   OutputConf
@@ -8,14 +12,7 @@ type Configuration struct {
 }
 
 type ProtoConf struct {
-	Driver   string
-	FullText []byte
+	Driver         string
+	MaxConnections int
+	Timeout        time.Duration
 }
-
-/*
-func (e *ProtoConf) UnmarshalYAML(value *yaml.Node) error {
-	panic("TODO")
-	return nil
-}
-
-*/

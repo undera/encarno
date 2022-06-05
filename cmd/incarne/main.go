@@ -53,7 +53,12 @@ func LoadConfig(path string) core.Configuration {
 		panic(err)
 	}
 
-	cfg := core.Configuration{}
+	cfg := core.Configuration{
+		Protocol: core.ProtoConf{
+			MaxConnections: 1,
+			Timeout:        1 * time.Second,
+		},
+	}
 	err = yaml.Unmarshal(yamlFile, &cfg)
 	if err != nil {
 		panic(err)
@@ -106,8 +111,7 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 			return &core.DummyNib{}
 		}
 	case "http":
-		httpConf := http.ParseHTTPConf(protocol)
-		pool := http.NewConnectionPool(httpConf.MaxConnections, httpConf.Timeout*time.Second)
+		pool := http.NewConnectionPool(protocol.MaxConnections, protocol.Timeout*time.Second)
 
 		return func() core.Nib {
 			return &http.Nib{

@@ -91,9 +91,9 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 		if err != nil {
 			log.Warningf("Failed to close connection: %s", err)
 		}
+	} else {
+		n.ConnPool.Return(item.Hostname, conn)
 	}
-
-	n.ConnPool.Return(item.Hostname, conn)
 }
 
 func (n *Nib) readerLoop() {
