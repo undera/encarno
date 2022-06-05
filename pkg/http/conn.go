@@ -184,7 +184,7 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 }
 
 func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
-	log.Debugf("Opening new connection to %s", hostname)
+	log.Infof("Opening new connection to %s", hostname)
 
 	if !strings.Contains(hostname, "://") {
 		hostname = "http://" + hostname

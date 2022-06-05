@@ -38,16 +38,23 @@ func (s *OpenWorkload) Run() {
 
 	s.SpawnInitial(scheduleChan)
 
+	last := time.Duration(0)
 	for offset := range s.GenerateSchedule() {
+		if offset < last {
+			panic("can't be")
+		} else {
+			last = offset
+		}
+
 		select {
 		case scheduleChan <- offset: // try putting if somebody is reading it
 			continue
 		default:
 			working := s.Status.GetWorking()
 			sleeping := s.Status.GetSleeping()
-			log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
 			workerCnt := len(s.Workers)
 			if working >= int64(workerCnt) && sleeping < 1 && workerCnt < s.MaxWorkers {
+				log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
 				s.SpawnWorker(nil)
 			}
 			scheduleChan <- offset
@@ -61,8 +68,35 @@ func (s *OpenWorkload) Run() {
 }
 
 func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
-	//TODO implement me
-	panic("implement me")
+	ch := make(core.ScheduleChannel)
+	go func() {
+		curOffset := time.Duration(0)
+		for _, step := range s.Scenario {
+			k := (step.LevelEnd - step.LevelStart) / float64(step.Duration/time.Second)
+			x := 0.0
+			accum := time.Duration(0)
+			for {
+				// antiderivative from linear function
+				//1/X to turn it into intervals
+				rate := k*x*x/2.0 + step.LevelStart*x
+				offset := time.Duration(0)
+				if rate != 0 {
+					offset = time.Duration(float64(time.Second.Nanoseconds()) / rate)
+				}
+				if accum > step.Duration {
+					break
+				}
+				accum += offset
+				log.Infof("%s", accum)
+				ch <- curOffset + accum
+				x++
+			}
+
+			curOffset += step.Duration
+		}
+		close(ch)
+	}()
+	return ch
 }
 
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {

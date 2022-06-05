@@ -1,5 +1,6 @@
 # incarne 
 - `phantom` was too "phantom", we're trying to be "in flesh", just working name, we can change it
+- https://en.wiktionary.org/wiki/in_carne_ed_ossa actually the right, maybe https://en.wiktionary.org/wiki/in_personam#Latin
 - can be `scribe` because of `nib`? more competition on GH
 
 ## Vision

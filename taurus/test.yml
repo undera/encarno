@@ -2,8 +2,9 @@
 execution:
   - executor: incarne
     scenario: simple
-    concurrency: 10
-    ramp-up: 30s
+    concurrency: 100
+    throughput: 1000
+    ramp-up: 5m
     hold-for: 1m
 
 scenarios:
@@ -11,9 +12,9 @@ scenarios:
     default-address: http://localhost:8070/
     requests:
       - /
-      - /gimme404
-      - http://localhost/
-      - http://127.0.0.1:8070/
+      #- /gimme404
+      #- http://localhost/
+      #- http://127.0.0.1:8070/
 
 services:
   - module: shellexec
@@ -23,3 +24,6 @@ services:
 modules:
   incarne:
     path: bin/incarne
+
+#  console:
+#    disable: true
