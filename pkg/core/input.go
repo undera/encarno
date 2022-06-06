@@ -20,17 +20,12 @@ type InputConf struct {
 	PayloadFile    string
 	StringsFile    string
 	EnableRegexes  bool
-	Predefined     Input
+	Predefined     InputChannel
 	IterationLimit int
 }
 
 type InputChannel chan *PayloadItem
 type ScheduleChannel chan time.Duration
-
-type Input interface {
-	Start(input InputConf) InputChannel
-	Clone() Input
-}
 
 type PayloadItem struct {
 	Label      string
@@ -60,7 +55,7 @@ func (r *ExtractRegex) String() string {
 
 func NewInput(config InputConf) InputChannel {
 	if config.Predefined != nil {
-		return config.Predefined.Start(config)
+		return config.Predefined
 	}
 
 	file, err := os.Open(config.PayloadFile)

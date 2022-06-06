@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestScenario(t *testing.T) {
+func TestClosedGenerator(t *testing.T) {
 	scen := ClosedWorkload{
 		BaseWorkload: core.BaseWorkload{
 			Scenario: []core.WorkloadLevel{

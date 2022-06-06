@@ -70,30 +70,30 @@ func (s *OpenWorkload) Run() {
 func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 	ch := make(core.ScheduleChannel)
 	go func() {
-		curOffset := time.Duration(0)
-		for _, step := range s.Scenario {
-			k := (step.LevelEnd - step.LevelStart) / float64(step.Duration/time.Second)
-			x := 0.0
-			accum := time.Duration(0)
-			for {
-				// antiderivative from linear function
-				//1/X to turn it into intervals
-				rate := k*x*x/2.0 + step.LevelStart*x
-				offset := time.Duration(0)
-				if rate != 0 {
-					offset = time.Duration(float64(time.Second.Nanoseconds()) / rate)
-				}
-				if accum > step.Duration {
-					break
-				}
-				accum += offset
-				log.Infof("%s", accum)
-				ch <- curOffset + accum
-				x++
-			}
+		curStep := 0
+		cnt := 0
+		accum := time.Duration(0)
+		finishedSteps := time.Duration(0)
+		for curStep < len(s.Scenario) {
+			step := s.Scenario[curStep]
+			durSec := float64(step.Duration) / float64(time.Second)
+			k := (step.LevelEnd - step.LevelStart) / durSec
 
-			curOffset += step.Duration
+			var offset float64
+			if k != 0 && cnt != 0 {
+				offset = 1 / (k * math.Sqrt(2*float64(cnt)/k))
+			} else {
+				offset = 0
+			}
+			accum += time.Duration(int64(offset * float64(time.Second)))
+			ch <- accum
+			cnt += 1
+			if accum > finishedSteps+step.Duration {
+				curStep += 1
+				finishedSteps += accum
+			}
 		}
+
 		close(ch)
 	}()
 	return ch

@@ -323,3 +323,6 @@ class IncarneKPIReader(ResultsReader):
             byte_count = row["SentBytesCount"] + row["RespBytesCount"]
             concur = row["Concurrency"]
             yield tstmp, label, concur, rtm, cnn, ltc, rcd, error, '', byte_count
+
+    def _ramp_up_exclude(self):
+        return False
