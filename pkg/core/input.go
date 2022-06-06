@@ -20,7 +20,7 @@ type InputConf struct {
 	PayloadFile    string
 	StringsFile    string
 	EnableRegexes  bool
-	Predefined     InputChannel
+	Predefined     InputChannel `yaml:"-"`
 	IterationLimit int
 }
 

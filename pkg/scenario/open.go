@@ -50,12 +50,16 @@ func (s *OpenWorkload) Run() {
 		case scheduleChan <- offset: // try putting if somebody is reading it
 			continue
 		default:
+			workerCnt := len(s.Workers)
 			working := s.Status.GetWorking()
 			sleeping := s.Status.GetSleeping()
-			workerCnt := len(s.Workers)
-			if working >= int64(workerCnt) && sleeping < 1 && workerCnt < s.MaxWorkers {
-				log.Infof("Working: %d, sleeping: %d, busy: %d", working, sleeping, s.Status.GetBusy())
-				s.SpawnWorker(nil)
+			busy := s.Status.GetBusy()
+			waiting := s.Status.GetWaiting()
+			log.Debugf("len: %d, waiting: %d, working: %d, sleeping: %d, busy: %d", workerCnt, waiting, working, sleeping, busy)
+
+			notMaxed := s.MaxWorkers <= 0 || workerCnt < s.MaxWorkers
+			if notMaxed && sleeping <= 0 {
+				s.SpawnWorker(scheduleChan)
 			}
 			scheduleChan <- offset
 		}

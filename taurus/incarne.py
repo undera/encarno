@@ -149,7 +149,8 @@ class IncarneFilesGenerator(object):
             },
             "workers": {
                 "mode": "open" if load.throughput else "closed",
-                "workloadschedule": self._translate_load(load)
+                "workloadschedule": self._translate_load(load),
+                "maxworkers": load.concurrency,
             }
         }
 

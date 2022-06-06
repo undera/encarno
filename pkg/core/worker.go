@@ -9,23 +9,41 @@ import (
 // basic worker and regex-capable worker, regex-capable should read file on its own
 // track expected request time and factual, report own overloaded state, auto-stop if unable to conform
 
-// TODO refine what's actually needed
-type Status interface {
-	DecBusy()
+type Status interface { // TODO refine what's actually needed
 	IncBusy()
+	DecBusy()
+	GetBusy() int64
+
+	IncWaiting()
+	DecWaiting()
+	GetWaiting() int64
+
 	IncSleeping()
 	DecSleeping()
+	GetSleeping() int64
+
 	IncWorking()
 	DecWorking()
 	GetWorking() int64
-	GetSleeping() int64
-	GetBusy() int64
 }
 
 type StatusImpl struct {
 	sleeping int64
 	busy     int64
 	working  int64
+	waiting  int64
+}
+
+func (o *StatusImpl) IncWaiting() {
+	atomic.AddInt64(&o.waiting, 1)
+}
+
+func (o *StatusImpl) DecWaiting() {
+	atomic.AddInt64(&o.waiting, -1)
+}
+
+func (o *StatusImpl) GetWaiting() int64 {
+	return o.waiting
 }
 
 func (o *StatusImpl) GetWorking() int64 {
@@ -110,8 +128,11 @@ outer:
 
 func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 	timeTracker.Reset()
+
 	timeTracker.Sleeping()
+	w.Status.IncWaiting()
 	offset := <-w.InputSchedule
+	w.Status.DecWaiting()
 	timeTracker.Working()
 
 	w.Status.IncWorking()
