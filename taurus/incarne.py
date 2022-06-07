@@ -165,7 +165,14 @@ class IncarneFilesGenerator(object):
         level = load.throughput if load.throughput else load.concurrency
         if load.ramp_up:
             if load.steps:
-                raise NotImplementedError()  # TODO
+                step_dur = (load.ramp_up / load.steps)
+                for step in range(load.steps):
+                    step_level = round(level * (step + 1) / load.steps)
+                    res.append({
+                        "levelstart": step_level,
+                        "levelend": step_level,
+                        "duration": "%.3fs" % step_dur
+                    })
             else:
                 res.append({
                     "levelstart": 0,

@@ -81,7 +81,6 @@ modules:
 
 ## TODO
 
-- steps keyword
 - health stats
 - URLs from file input type (access.log)
 - explicit option of shared input. To allow processing payload file only once.

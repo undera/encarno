@@ -5,7 +5,8 @@ execution:
     concurrency: 100
     throughput: 1000
     ramp-up: 1m
-    hold-for: 5m
+    steps: 7
+    #hold-for: 5m
 
 scenarios:
   simple:

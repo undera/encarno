@@ -115,7 +115,7 @@ func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 			cnt += 1
 			if accum > finishedSteps+step.Duration {
 				curStep += 1
-				finishedSteps += accum
+				finishedSteps = accum
 			}
 		}
 
