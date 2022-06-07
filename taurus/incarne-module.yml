@@ -1,0 +1,8 @@
+---
+modules:
+  incarne:
+    class: incarne.IncarneExecutor
+
+  csvresults:
+    class: reporters.CSVFile
+

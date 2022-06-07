@@ -1,0 +1,33 @@
+---
+execution:
+  - executor: incarne
+    scenario: simple
+    concurrency: 100
+    throughput: 1000
+    ramp-up: 1m
+    hold-for: 5m
+
+scenarios:
+  simple:
+    default-address: http://localhost:8070/
+    requests:
+      - /
+      - /gimme404
+      - http://127.0.0.1:8070/
+      - http://[::1]:8070/
+      - http://localhost:8000/
+
+reporting:
+  - csvresults
+
+services:
+  - module: shellexec
+    prepare:
+      - go build -o bin/incarne cmd/incarne/main.go
+
+modules:
+  incarne:
+    path: bin/incarne
+
+  console:
+    disable: false
