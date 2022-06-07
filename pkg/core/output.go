@@ -90,7 +90,7 @@ func (m *MultiFileOutput) Start(output OutputConf) {
 }
 
 func (m *MultiFileOutput) Push(res *OutputItem) {
-	res.Concurrency = m.Status.GetWorking()
+	res.Concurrency = m.Status.GetBusy()
 	m.pipe <- res
 }
 
