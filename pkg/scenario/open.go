@@ -13,7 +13,8 @@ type OpenWorkload struct {
 	MinWorkers int
 	MaxWorkers int
 
-	interrupted bool
+	interrupted  bool
+	sumDurations time.Duration
 }
 
 func (s *OpenWorkload) Interrupt() {
@@ -39,6 +40,7 @@ func (s *OpenWorkload) Run() {
 	s.SpawnInitial(scheduleChan)
 
 	last := time.Duration(0)
+outer:
 	for offset := range s.GenerateSchedule() {
 		if offset < last {
 			panic("can't be")
@@ -50,6 +52,11 @@ func (s *OpenWorkload) Run() {
 		case scheduleChan <- offset: // try putting if somebody is reading it
 			continue
 		default:
+			if time.Now().Sub(s.StartTime) > (s.sumDurations + s.sumDurations/10) {
+				log.Warningf("The test exceeds expected duration of %v, interrupting...", s.sumDurations)
+				break outer
+			}
+
 			workerCnt := len(s.Workers)
 			working := s.Status.GetWorking()
 			sleeping := s.Status.GetSleeping()
@@ -80,16 +87,28 @@ func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 		finishedSteps := time.Duration(0)
 		for curStep < len(s.Scenario) {
 			step := s.Scenario[curStep]
-			durSec := float64(step.Duration) / float64(time.Second)
-			k := (step.LevelEnd - step.LevelStart) / durSec
 
-			var offset float64
-			if k != 0 && cnt != 0 {
-				offset = 1 / (k * math.Sqrt(2*float64(cnt)/k))
+			var rate float64
+			if step.LevelStart == step.LevelEnd {
+				rate = step.LevelEnd
 			} else {
-				offset = 0
+				durSec := float64(step.Duration) / float64(time.Second)
+				k := (step.LevelEnd - step.LevelStart) / durSec
+				rate = k * math.Sqrt(2*float64(cnt)/k)
 			}
-			accum += time.Duration(int64(offset * float64(time.Second)))
+
+			var interval float64
+			if rate > 0 {
+				interval = 1 / rate
+			} else {
+				interval = 0
+			}
+
+			if accum != 0 && interval == 0 {
+				panic("schedule calculations stuck")
+			}
+
+			accum += time.Duration(int64(interval * float64(time.Second)))
 			ch <- accum
 			cnt += 1
 			if accum > finishedSteps+step.Duration {
@@ -104,10 +123,17 @@ func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 }
 
 func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+
+	sumDurations := time.Duration(0)
+	for _, step := range workers.WorkloadSchedule {
+		sumDurations += step.Duration
+	}
+
 	workload := OpenWorkload{
 		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, workers),
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
+		sumDurations: sumDurations,
 	}
 	return &workload
 }

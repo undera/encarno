@@ -69,7 +69,7 @@ func TestOpenGenerator(t *testing.T) {
 		BaseWorkload: core.BaseWorkload{
 			Scenario: []core.WorkloadLevel{
 				{0, 10, 5 * time.Second},
-				//{10, 15, 2 * time.Second},
+				{10, 10, 2 * time.Second},
 				//{15, 15, 5 * time.Second},
 			},
 		},
