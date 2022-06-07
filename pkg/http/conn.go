@@ -121,7 +121,7 @@ func (r *BufferedConn) Reset() {
 type ConnChan = chan *BufferedConn
 
 type ConnPool struct {
-	Idle           map[string]ConnChan
+	Idle           sync.Map
 	MaxConnections int
 	Timeout        time.Duration
 	resolver       *RRResolver
@@ -143,7 +143,7 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 				InsecureSkipVerify: true, // TODO: make configurable
 			},
 		},
-		Idle:           make(map[string]ConnChan),
+		Idle:           sync.Map{},
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
 	}
@@ -153,15 +153,15 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 	// lazy initialize per-host pool
 	var ch ConnChan
-	if c, ok := p.Idle[hostname]; ok {
-		ch = c
+	if c, ok := p.Idle.Load(hostname); ok {
+		ch = c.(ConnChan)
 	} else {
 		ch = make(ConnChan, p.MaxConnections)
-		p.Idle[hostname] = ch
+		p.Idle.Store(hostname, ch)
 	}
 
 	select {
-	case conn := <-p.Idle[hostname]:
+	case conn := <-ch:
 		err := conn.GetErr()
 		if err == io.EOF {
 			log.Debugf("Cannot reuse Idle connection: %v", err)
@@ -225,7 +225,8 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if conn.GetErr() == nil && !conn.Canceled {
-		p.Idle[hostname] <- conn
+		load, _ := p.Idle.Load(hostname) // can not fail in practice
+		load.(ConnChan) <- conn
 	}
 }
 

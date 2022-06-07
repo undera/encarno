@@ -35,28 +35,30 @@ func (s *OpenWorkload) SpawnInitial(scheduleChan core.ScheduleChannel) {
 func (s *OpenWorkload) Run() {
 	log.Debugf("Starting open workload scenario")
 
+	stopCutoff := s.StartTime.Add(s.sumDurations + s.sumDurations/10)
+	log.Infof("Duration cutoff is at %s", stopCutoff)
+
 	scheduleChan := make(chan time.Duration)
 
 	s.SpawnInitial(scheduleChan)
 
 	last := time.Duration(0)
-outer:
 	for offset := range s.GenerateSchedule() {
 		if offset < last {
-			panic("can't be")
+			panic("Schedule offsets have to be ever-increasing")
 		} else {
 			last = offset
+		}
+
+		if time.Now().After(stopCutoff) {
+			log.Warningf("The test exceeds expected duration of %v, interrupting...", s.sumDurations)
+			break
 		}
 
 		select {
 		case scheduleChan <- offset: // try putting if somebody is reading it
 			continue
 		default:
-			if time.Now().Sub(s.StartTime) > (s.sumDurations + s.sumDurations/10) {
-				log.Warningf("The test exceeds expected duration of %v, interrupting...", s.sumDurations)
-				break outer
-			}
-
 			workerCnt := len(s.Workers)
 			working := s.Status.GetWorking()
 			sleeping := s.Status.GetSleeping()
