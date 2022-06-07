@@ -25,8 +25,9 @@ type BufferedConn struct {
 	Canceled        bool
 	readChunks      chan []byte
 	buf             []byte
+	closed          bool
 	loopDone        bool
-	mxErr           *sync.Mutex
+	mx              *sync.Mutex
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
@@ -35,7 +36,7 @@ func newBufferedConn(c net.Conn) *BufferedConn {
 		ReadRecordLimit: 1024 * 1024,
 		buf:             make([]byte, 4096),
 		readChunks:      make(chan []byte),
-		mxErr:           new(sync.Mutex),
+		mx:              new(sync.Mutex),
 	}
 	go conn.readLoop()
 	return conn
@@ -43,19 +44,11 @@ func newBufferedConn(c net.Conn) *BufferedConn {
 
 func (r *BufferedConn) readLoop() {
 	log.Debugf("Start reading loop")
-	defer func() {
-		log.Debugf("Closing connection")
-		err := r.Conn.Close()
-		if err != nil {
-			log.Warningf("Failed to close connection: %s", err)
-		}
-	}()
-
 	for !r.Canceled {
 		n, err := r.Conn.Read(r.buf)
 		if err != nil {
 			r.setErr(err)
-			r.Canceled = true // but we still should finish the iteration
+			break
 		}
 
 		if r.ReadLen == 0 {
@@ -76,22 +69,19 @@ func (r *BufferedConn) readLoop() {
 	}
 	log.Debugf("Done reading loop")
 
-	err := r.Close()
-	if err != nil {
-		log.Warningf("Error while trying to close connection: %s", err)
-	}
+	r.Close()
 	r.loopDone = true
 }
 
 func (r *BufferedConn) setErr(err error) {
-	r.mxErr.Lock()
-	defer r.mxErr.Unlock()
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	r.Err = err
 }
 
 func (r *BufferedConn) GetErr() error {
-	r.mxErr.Lock()
-	defer r.mxErr.Unlock()
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	return r.Err
 }
 
@@ -107,9 +97,21 @@ func (r *BufferedConn) Read(p []byte) (int, error) {
 }
 
 func (r *BufferedConn) Close() error {
-	if !r.Canceled {
-		r.Canceled = true
+	log.Debugf("Closing connection")
+	r.mx.Lock()
+	defer r.mx.Unlock()
+	r.Canceled = true
+
+	if !r.closed {
+		log.Debugf("Closing underlying connection: %p", r.Conn)
+		r.closed = true
+		close(r.readChunks)
+		err := r.Conn.Close()
+		if err != nil {
+			log.Warningf("Failed to close connection: %s", err)
+		}
 	}
+
 	return nil
 }
 

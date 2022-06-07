@@ -82,11 +82,9 @@ modules:
 ## TODO
 
 - graceful shutdown: wait for output to flush and close, interrupt workers, close input
-- open workload math
 - health stats
 - scripting elements in input, whole scripting flow
 - URLs from file input type (access.log)
 - explicit option of shared input. To allow processing payload file only once.
 - respect `iterations` option from Taurus config
-- should we interrupt the test once its duration is over, always?
-- check the RAM usage over time, looks like a leak
+- steps keyword

@@ -143,6 +143,7 @@ class IncarneFilesGenerator(object):
             },
             "input": {
                 "payloadfile": self.payload_file,
+                "iterationlimit": load.iterations,
             },
             "output": {
                 "ldjsonfile": self.kpi_file
