@@ -23,7 +23,6 @@ type Worker struct {
 }
 
 func (w *Worker) Run() {
-	timeTracker := TimeTracker{}
 outer:
 	for {
 		// TODO: only measure single iteration with time tracker, record its ratio into result
@@ -32,7 +31,7 @@ outer:
 			log.Debugf("Aborting worker: %s", w.Name)
 			break outer
 		default:
-			shouldStop := w.Iteration(&timeTracker)
+			shouldStop := w.Iteration()
 			if shouldStop {
 				break outer
 			}
@@ -43,14 +42,11 @@ outer:
 	// TODO: somehow notify workers array/count
 }
 
-func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
-	timeTracker.Reset()
+func (w *Worker) Iteration() bool {
 
-	timeTracker.Sleeping()
 	w.Status.IncWaiting()
 	offset := <-w.InputSchedule
 	w.Status.DecWaiting()
-	timeTracker.Working()
 
 	w.Status.IncWorking()
 	w.IterationCount += 1
@@ -67,9 +63,7 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 	if delay > 0 {
 		log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
 		w.Status.IncSleeping()
-		timeTracker.Sleeping()
 		time.Sleep(delay) // todo: make it cancelable
-		timeTracker.Working()
 		w.Status.DecSleeping()
 	}
 
@@ -105,34 +99,6 @@ func NewBasicWorker(name string, abort chan struct{}, wl *BaseWorkload, schedule
 	}
 	return b
 }
-
-type TimeTracker struct {
-	Stamp         time.Time
-	IsSleeping    bool
-	SpentWorking  time.Duration
-	SpentSleeping time.Duration
-}
-
-func (t *TimeTracker) Working() {
-	t.SpentSleeping += time.Now().Sub(t.Stamp)
-	t.Stamp = time.Now()
-}
-
-func (t *TimeTracker) Sleeping() {
-	t.SpentWorking += time.Now().Sub(t.Stamp)
-	t.Stamp = time.Now()
-}
-
-func (t *TimeTracker) Reset() {
-	t.SpentWorking = 0
-	t.SpentSleeping = 0
-	t.Stamp = time.Now()
-}
-
-// something spawns workers on-demand - either on schedule, or to sustain hits/s
-// each worker knows its input reader, nib (can be different nibs btw), output writer
-// auto-USL scenario, scheduled scenario, external "stpd" scenario
-// spit out some stats each N seconds
 
 type WorkerSpawner interface {
 	Run()

@@ -77,6 +77,7 @@ func (o *Status) Start() {
 			sleeping := o.GetSleeping()
 			busy := o.GetBusy()
 			waiting := o.GetWaiting()
+
 			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d", waiting, working, sleeping, busy)
 		}
 	}()
