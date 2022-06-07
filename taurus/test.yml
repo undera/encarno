@@ -11,7 +11,11 @@ execution:
 scenarios:
   simple:
     default-address: http://localhost:8070/
-    requests:
+    headers:
+      X-Marker: value
+
+    requests: taurus/urls.txt
+    requests1:
       - /
       - /gimme404
       - http://127.0.0.1:8070/
