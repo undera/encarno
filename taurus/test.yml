@@ -2,8 +2,8 @@
 execution:
   - executor: incarne
     scenario: simple
-    concurrency: 100
-    throughput: 1000
+    concurrency: 10000
+    throughput: 60000
     ramp-up: 5m
     hold-for: 1m
 
@@ -13,8 +13,11 @@ scenarios:
     requests:
       - /
       #- /gimme404
-      #- http://localhost/
-      #- http://127.0.0.1:8070/
+      #- http://localhost:8000/
+      #- http://127.0.0.1:8000/README.md
+
+reporting:
+  - csvresults
 
 services:
   - module: shellexec
@@ -25,5 +28,5 @@ modules:
   incarne:
     path: bin/incarne
 
-#  console:
-#    disable: true
+  console:
+    disable: true
