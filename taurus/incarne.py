@@ -1,3 +1,4 @@
+import http
 import json
 import traceback
 from json import JSONDecodeError
@@ -315,6 +316,9 @@ class IncarneKPIReader(ResultsReader):
 
             error = row["ErrorStr"] if row["ErrorStr"] else None
             rcd = str(row["Status"])
+
+            if row["Status"] >= 400 and not error:  # TODO: should this be under config flag?
+                error = http.HTTPStatus(row["Status"]).phrase
 
             tstmp = int(row["StartTS"])
 
