@@ -19,7 +19,7 @@ func TestExternal(t *testing.T) {
 		return &nib
 	}
 
-	scen := NewOpenWorkload(core.WorkerConf{}, core.InputConf{Predefined: DummyGenerator()}, maker, &dummyOutput{Status: new(core.StatusImpl)})
+	scen := NewOpenWorkload(core.WorkerConf{}, core.InputConf{Predefined: DummyGenerator()}, maker, &dummyOutput{Status: new(core.Status)})
 
 	scen.Run()
 	log.Infof("Final sleep")
@@ -45,15 +45,10 @@ func DummyGenerator() core.InputChannel {
 }
 
 type dummyOutput struct {
-	Status core.Status
 }
 
 func (d dummyOutput) Close() {
 
-}
-
-func (d dummyOutput) GetStatusObj() core.Status {
-	return d.Status
 }
 
 func (d dummyOutput) Start(output core.OutputConf) {
@@ -66,7 +61,7 @@ func (d dummyOutput) Push(res *core.OutputItem) {
 
 func TestOpenGenerator(t *testing.T) {
 	scen := OpenWorkload{
-		BaseWorkload: core.BaseWorkload{
+		BaseWorkload: &core.BaseWorkload{
 			Scenario: []core.WorkloadLevel{
 				{0, 10, 5 * time.Second},
 				{10, 10, 2 * time.Second},

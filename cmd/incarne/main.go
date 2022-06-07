@@ -93,12 +93,15 @@ func handleSignals() {
 }
 
 func Run(config core.Configuration) {
-	output := core.NewMultiOutput(config.Output, &core.StatusImpl{})
+	status := new(core.Status)
+	status.Start()
+
+	output := core.NewMultiOutput(config.Output)
 	output.Start(config.Output)
 
 	nibMaker := NewNibMaker(config.Protocol)
 
-	workload := NewWorkload(config.Workers, config.Input, nibMaker, output)
+	workload := NewWorkload(config.Workers, config.Input, nibMaker, output, status)
 	workload.Run()
 	output.Close()
 }
@@ -123,12 +126,13 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	}
 }
 
-func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output core.Output) core.WorkerSpawner {
+func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output core.Output, status *core.Status) core.WorkerSpawner {
+	base := core.NewBaseWorkload(nibMaker, output, inputConfig, workersConf, status)
 	switch workersConf.Mode {
 	case "open":
-		return scenario.NewOpenWorkload(workersConf, inputConfig, nibMaker, output)
+		return scenario.NewOpenWorkload(workersConf, base)
 	case "closed":
-		return scenario.NewClosedWorkload(workersConf, inputConfig, nibMaker, output)
+		return scenario.NewClosedWorkload(inputConfig, base)
 	default:
 		panic(fmt.Sprintf("Unsupported workers mode: %s", workersConf.Mode))
 	}

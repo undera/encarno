@@ -9,7 +9,7 @@ import (
 
 // OpenWorkload imlements pre-calculated open workload scenario
 type OpenWorkload struct {
-	core.BaseWorkload
+	*core.BaseWorkload
 	MinWorkers int
 	MaxWorkers int
 
@@ -60,14 +60,9 @@ func (s *OpenWorkload) Run() {
 			continue
 		default:
 			workerCnt := len(s.Workers)
-			working := s.Status.GetWorking()
-			sleeping := s.Status.GetSleeping()
-			busy := s.Status.GetBusy()
-			waiting := s.Status.GetWaiting()
-			log.Debugf("len: %d, waiting: %d, working: %d, sleeping: %d, busy: %d", workerCnt, waiting, working, sleeping, busy)
 
 			notMaxed := s.MaxWorkers <= 0 || workerCnt < s.MaxWorkers
-			if notMaxed && sleeping <= 0 {
+			if notMaxed && s.BaseWorkload.Status.GetSleeping() <= 0 {
 				s.SpawnWorker(scheduleChan)
 			}
 			scheduleChan <- offset
@@ -124,15 +119,14 @@ func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
 	return ch
 }
 
-func NewOpenWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
-
+func NewOpenWorkload(workers core.WorkerConf, base *core.BaseWorkload) core.WorkerSpawner {
 	sumDurations := time.Duration(0)
 	for _, step := range workers.WorkloadSchedule {
 		sumDurations += step.Duration
 	}
 
 	workload := OpenWorkload{
-		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, workers),
+		BaseWorkload: base,
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
 		sumDurations: sumDurations,

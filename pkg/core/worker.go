@@ -2,94 +2,11 @@ package core
 
 import (
 	log "github.com/sirupsen/logrus"
-	"sync/atomic"
 	"time"
 )
 
 // basic worker and regex-capable worker, regex-capable should read file on its own
 // track expected request time and factual, report own overloaded state, auto-stop if unable to conform
-
-type Status interface { // TODO refine what's actually needed
-	IncBusy()
-	DecBusy()
-	GetBusy() int64
-
-	IncWaiting()
-	DecWaiting()
-	GetWaiting() int64
-
-	IncSleeping()
-	DecSleeping()
-	GetSleeping() int64
-
-	IncWorking()
-	DecWorking()
-	GetWorking() int64
-}
-
-type StatusImpl struct {
-	sleeping int64
-	busy     int64
-	working  int64
-	waiting  int64
-}
-
-func (o *StatusImpl) IncWaiting() {
-	atomic.AddInt64(&o.waiting, 1)
-}
-
-func (o *StatusImpl) DecWaiting() {
-	atomic.AddInt64(&o.waiting, -1)
-}
-
-func (o *StatusImpl) GetWaiting() int64 {
-	return o.waiting
-}
-
-func (o *StatusImpl) GetWorking() int64 {
-	return o.working
-}
-
-func (o *StatusImpl) GetSleeping() int64 {
-	return o.sleeping
-}
-
-func (o *StatusImpl) GetBusy() int64 {
-	return o.busy
-}
-
-func (o *StatusImpl) IncWorking() {
-	atomic.AddInt64(&o.working, 1)
-}
-
-func (o *StatusImpl) DecWorking() {
-	atomic.AddInt64(&o.working, -1)
-	if o.working < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *StatusImpl) IncSleeping() {
-	atomic.AddInt64(&o.sleeping, 1)
-	if o.sleeping < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *StatusImpl) DecSleeping() {
-	atomic.AddInt64(&o.sleeping, -1)
-}
-
-func (o *StatusImpl) DecBusy() {
-	atomic.AddInt64(&o.busy, -1)
-	if o.busy < 0 {
-		panic("Counter cannot be negative")
-	}
-}
-
-func (o *StatusImpl) IncBusy() {
-	atomic.AddInt64(&o.busy, 1)
-}
 
 type Worker struct {
 	Name           string
@@ -102,7 +19,7 @@ type Worker struct {
 	Values         map[string][]byte
 	Finished       bool
 	IterationCount int
-	Status         Status
+	Status         *Status
 }
 
 func (w *Worker) Run() {
@@ -168,6 +85,7 @@ func (w *Worker) Iteration(timeTracker *TimeTracker) bool {
 	if item.Label != "" { // allow Nib to generate own label
 		res.Label = item.Label
 	}
+	res.Concurrency = w.Status.GetBusy()
 	w.Output.Push(res)
 	w.Status.DecBusy()
 	w.Status.DecWorking()
