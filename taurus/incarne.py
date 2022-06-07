@@ -7,7 +7,7 @@ from urllib.parse import urlencode, urlparse
 import bzt.engine
 import yaml
 from bzt import ToolError, TaurusInternalException, TaurusConfigError
-from bzt.engine import ScenarioExecutor, HavingInstallableTools
+from bzt.engine import ScenarioExecutor, HavingInstallableTools, Scenario
 from bzt.modules import ExecutorWidget
 from bzt.modules.aggregator import ResultsReader, ConsolidatingAggregator
 from bzt.requests_model import HTTPRequest
@@ -165,7 +165,14 @@ class IncarneFilesGenerator(object):
         level = load.throughput if load.throughput else load.concurrency
         if load.ramp_up:
             if load.steps:
-                raise NotImplementedError()  # TODO
+                step_dur = (load.ramp_up / load.steps)
+                for step in range(load.steps):
+                    step_level = round(level * (step + 1) / load.steps)
+                    res.append({
+                        "levelstart": step_level,
+                        "levelend": step_level,
+                        "duration": "%.3fs" % step_dur
+                    })
             else:
                 res.append({
                     "levelstart": 0,
@@ -193,7 +200,12 @@ class IncarneFilesGenerator(object):
             self._generate_payload_inner(scenario)  # raises if there is no requests
 
     def _generate_payload_inner(self, scenario):
-        requests = scenario.get_requests()
+        req_val = scenario.get("requests")
+        if isinstance(req_val, str):
+            requests = self._text_file_reader(req_val, scenario)
+        else:
+            requests = scenario.get_requests()
+
         num_requests = 0
         with open(self.payload_file, 'w') as fds:
             for request in requests:
@@ -202,17 +214,17 @@ class IncarneFilesGenerator(object):
                     self.log.warning(msg, request.NAME)
                     continue
 
-                host, http = self._build_request(request, scenario)
+                host, tcp_payload = self._build_request(request, scenario)
 
                 metadata = {
-                    "PayloadLen": len(http.encode('utf-8')),
+                    "PayloadLen": len(tcp_payload.encode('utf-8')),
                     "Hostname": host,
                     "Label": request.label,
                 }
 
                 fds.write(json.dumps(metadata))  # metadata
                 fds.write("\r\n")  # sep
-                fds.write(http)  # payload
+                fds.write(tcp_payload)  # payload
                 fds.write("\r\n")  # sep
 
                 num_requests += 1
@@ -220,9 +232,9 @@ class IncarneFilesGenerator(object):
         if not num_requests:
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
-    def _build_request(self, request, scenario):
+    def _build_request(self, request: HTTPRequest, scenario: Scenario):
         hostUrl, netloc, path = self._get_request_path(request, scenario)
-        http = "%s %s HTTP/1.1\r\n" % (request.method, path)
+        payload = "%s %s HTTP/1.1\r\n" % (request.method, path)
         headers = BetterDict.from_dict({"Host": netloc})
         if not scenario.get("keepalive", True):
             headers.merge({"Connection": 'close'})  # HTTP/1.1 implies keep-alive by default
@@ -243,9 +255,9 @@ class IncarneFilesGenerator(object):
         headers.merge(scenario.get_headers())
         headers.merge(request.headers)
         for header, value in headers.items():
-            http += "%s: %s\r\n" % (header, value)
-        http += "\r\n%s" % (body,)
-        return hostUrl, http
+            payload += "%s: %s\r\n" % (header, value)
+        payload += "\r\n%s" % (body,)
+        return hostUrl, payload
 
     def _get_request_path(self, request, scenario):
         parsed_url = urlparse(request.url)
@@ -263,6 +275,24 @@ class IncarneFilesGenerator(object):
         hostname = parsed_url.scheme + "://" + parsed_url.netloc
 
         return hostname, parsed_url.netloc, path if len(path) else '/'
+
+    def _text_file_reader(self, filename, scenario):
+        with open(filename) as fp:
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+
+                parts = line.split(" ")
+
+                req = {
+                    "url": parts[1 if len(parts) > 1 else 0]
+                }
+
+                if len(parts) > 1:
+                    req["label"] = parts[0]
+
+                yield HTTPRequest(req, scenario, self.engine)
 
 
 def ns2sec(val):

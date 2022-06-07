@@ -81,12 +81,10 @@ modules:
 
 ## TODO
 
-- steps keyword
 - health stats
-- URLs from file input type (access.log)
 - explicit option of shared input. To allow processing payload file only once.
   - respect `iterations` option from Taurus config, test it
 - http://[::1]:8070/ - should work fine
-- binary output writer&reader
+- binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
 - graceful shutdown: wait for output to flush and close, interrupt workers, close input
