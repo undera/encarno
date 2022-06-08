@@ -55,7 +55,6 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
 ## TODO
 
-- health stats
 - explicit option of shared input. To allow processing payload file only once.
   - respect `iterations` option from Taurus config, test it
 - http://[::1]:8070/ - should work fine

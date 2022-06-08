@@ -18,6 +18,7 @@ from bzt.utils import get_full_path, CALL_PROBLEMS
 class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
     def __init__(self):
         super().__init__()
+        self.waiting_warning_cnt = 0
         self.tool = None
         self.process = None
         self.generator = None
@@ -53,14 +54,21 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
                 raise ToolError("%s exit code: %s" % (self.tool, retcode), self.get_error_diagnostics())
             return True
 
+        waiting = self.reader.health_reader.cnt_waiting
+        sleeping = self.reader.health_reader.cnt_sleeping
+        if waiting > 0:
+            self.waiting_warning_cnt += 1
+            if self.waiting_warning_cnt >= 3:
+                self.log.warning("Encarno has %d workers waiting for inputs. Is load generator overloaded?" % waiting)
+        else:
+            self.waiting_warning_cnt = 0
+
         if self.widget:
-            waiting = self.reader.health_reader.cnt_waiting
-            sleeping = self.reader.health_reader.cnt_sleeping
             label = [
                 "%r: " % self,
                 ("graph fail" if waiting > 0 else "stat-txt", "%d wait" % waiting),
                 ", ",
-                ("graph vc" if sleeping == 0 else "stat-txt", "%d sleep" % sleeping),
+                ("graph vc" if (sleeping == 0 and self.get_load().throughput) else "stat-txt", "%d sleep" % sleeping),
                 ", ",
                 "%d busy" % self.reader.health_reader.cnt_busy,
             ]
