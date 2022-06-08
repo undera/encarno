@@ -119,7 +119,7 @@ func NewClosedWorkload(inputConfig core.InputConf, base *core.BaseWorkload) core
 		BaseWorkload: base,
 		InputConfig:  inputConfig,
 		interrupt:    make(chan bool, 1), // buf 1 to not get stuck if nobody sleeps
-		done:         make(chan bool),
+		done:         make(chan bool, 1),
 	}
 
 	return &workload

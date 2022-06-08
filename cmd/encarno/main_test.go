@@ -11,8 +11,18 @@ import (
 func TestOpen(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
+	ichan := make(core.InputChannel)
+	go func() {
+		for {
+			ichan <- &core.PayloadItem{}
+		}
+	}()
+	inp := core.InputConf{
+		Predefined: ichan,
+	}
+
 	c := core.Configuration{
-		Input:  core.InputConf{},
+		Input:  inp,
 		Output: core.OutputConf{},
 		Workers: core.WorkerConf{
 			Mode: core.WorkloadOpen,
@@ -37,8 +47,18 @@ func TestClosed(t *testing.T) {
 	}
 	resultFile.Close()
 
+	ichan := make(core.InputChannel)
+	go func() {
+		for {
+			ichan <- &core.PayloadItem{}
+		}
+	}()
+	inp := core.InputConf{
+		Predefined: ichan,
+	}
+
 	c := core.Configuration{
-		Input: core.InputConf{},
+		Input: inp,
 		Output: core.OutputConf{
 			LDJSONFile: resultFile.Name(),
 		},

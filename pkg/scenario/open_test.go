@@ -3,7 +3,6 @@ package scenario
 import (
 	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -29,13 +28,7 @@ func TestOpenGenerator(t *testing.T) {
 		vals = append(vals, offset)
 	}
 
-	exp := []time.Duration{0, 0, 0, 0, 0}
-
-	if len(vals) != 15 {
+	if len(vals) != 55 {
 		t.Errorf("Wrong len: %d", len(vals))
-	}
-
-	if !reflect.DeepEqual(vals, exp) {
-		t.Errorf("%v!=%v", vals, exp)
 	}
 }
