@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="encarno",
-    version="0.1.0",
+    version="0.0.0",  # TODO: automate it
 
     author="Andrei Pokhilko",
     author_email="andrei.pokhilko@gmail.com",
@@ -15,5 +15,6 @@ setup(
     install_requires=[
         'bzt',
     ],
+    package_data={'': ['*.json', '*.yml']},
     include_package_data=True,
 )

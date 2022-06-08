@@ -253,6 +253,11 @@ class EncarnoFilesGenerator(object):
                 num_requests += 1
 
         if not num_requests:
+            if scenario.get('protocol') == "dummy":
+                self.log.info("Dummy test uses dummy scenario")
+                scenario['requests'] = ["/"]
+                return self._generate_payload_inner(scenario)
+
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):

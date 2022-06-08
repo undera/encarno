@@ -1,7 +1,7 @@
 import logging
 import time
 
-from taurus.encarno import KPIReader
+from taurus import KPIReader
 
 logging.basicConfig(level=logging.INFO)
 
