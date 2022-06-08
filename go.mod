@@ -1,4 +1,4 @@
-module incarne
+module encarno
 
 go 1.18
 

@@ -32,10 +32,10 @@ type BaseWorkload struct {
 	NibMaker     NibMaker
 	StartTime    time.Time
 	Output       Output
-	Status       Status
 	InputPayload func() InputChannel
 	Scenario     []WorkloadLevel
 	cnt          int
+	Status       *Status
 }
 
 func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
@@ -48,7 +48,7 @@ func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	go worker.Run()
 }
 
-func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf) BaseWorkload {
+func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf, status *Status) *BaseWorkload {
 	var payloadGetter func() InputChannel
 	if inputConfig.EnableRegexes || wconf.Mode == WorkloadClosed {
 		inputChannel := NewInput(inputConfig)
@@ -62,14 +62,13 @@ func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf
 		}
 	}
 
-	status := output.GetStatusObj()
-	return BaseWorkload{
+	return &BaseWorkload{
 		Workers:      make([]*Worker, 0),
 		NibMaker:     maker,
 		StartTime:    time.Now(),
 		Output:       output,
-		Status:       status,
 		InputPayload: payloadGetter,
 		Scenario:     wconf.WorkloadSchedule,
+		Status:       status,
 	}
 }

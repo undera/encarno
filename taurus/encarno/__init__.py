@@ -15,9 +15,10 @@ from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, de
 from bzt.utils import get_full_path, CALL_PROBLEMS
 
 
-class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
+class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
     def __init__(self):
         super().__init__()
+        self.waiting_warning_cnt = 0
         self.tool = None
         self.process = None
         self.generator = None
@@ -25,9 +26,10 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
     def prepare(self):
         super().prepare()
         self.install_required_tools()
-        self.stdout = open(self.engine.create_artifact("incarne", ".out"), 'w')
-        self.stderr = open(self.engine.create_artifact("incarne", ".err"), 'w')
-        self.generator = IncarneFilesGenerator(self, self.log)
+        self.stdout = open(self.engine.create_artifact("encarno", ".out"), 'w')
+        self.stderr = open(self.engine.create_artifact("encarno", ".err"), 'w')
+
+        self.generator = EncarnoFilesGenerator(self, self.log)
         self.generator.generate_payload(self.get_scenario())
         self.generator.generate_config(self.get_scenario(), self.get_load())
 
@@ -36,7 +38,7 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
             self.engine.aggregator.add_underling(self.reader)
 
     def install_required_tools(self):
-        self.tool = self._get_tool(IncarneBinary, config=self.settings)
+        self.tool = self._get_tool(ToolBinary, config=self.settings)
 
         if not self.tool.check_if_installed():
             self.tool.install()
@@ -51,6 +53,27 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
             if retcode != 0:
                 raise ToolError("%s exit code: %s" % (self.tool, retcode), self.get_error_diagnostics())
             return True
+
+        waiting = self.reader.health_reader.cnt_waiting
+        sleeping = self.reader.health_reader.cnt_sleeping
+        if waiting > 0:
+            self.waiting_warning_cnt += 1
+            if self.waiting_warning_cnt >= 3:
+                self.log.warning("Encarno has %d workers waiting for inputs. Is load generator overloaded?" % waiting)
+        else:
+            self.waiting_warning_cnt = 0
+
+        if self.widget:
+            label = [
+                "%r: " % self,
+                ("graph fail" if waiting > 0 else "stat-txt", "%d wait" % waiting),
+                ", ",
+                ("graph vc" if (sleeping == 0 and self.get_load().throughput) else "stat-txt", "%d sleep" % sleeping),
+                ", ",
+                "%d busy" % self.reader.health_reader.cnt_busy,
+            ]
+            self.widget.widgets[0].set_text(label)
+
         return False
 
     def shutdown(self):
@@ -78,7 +101,7 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
         """
         if not self.widget:
             scen = self.execution.get("scenario")
-            label = "Incarne: %s" % scen if isinstance(scen, str) else "..."  # TODO
+            label = "Encarno: %s" % scen if isinstance(scen, str) else "..."  # TODO
             self.widget = ExecutorWidget(self, label)
         return self.widget
 
@@ -90,12 +113,12 @@ class IncarneExecutor(ScenarioExecutor, HavingInstallableTools):
             return []
 
 
-class IncarneBinary(RequiredTool):
+class ToolBinary(RequiredTool):
     def __init__(self, config=None, **kwargs):
         settings = config or {}
 
         # don't extend system-wide default
-        tool_path = get_full_path(settings.get("path"), default="incarne")
+        tool_path = get_full_path(settings.get("path"), default="encarno")
 
         super().__init__(tool_path=tool_path, installable=False, **kwargs)
 
@@ -114,7 +137,7 @@ class IncarneBinary(RequiredTool):
         return True
 
 
-class IncarneFilesGenerator(object):
+class EncarnoFilesGenerator(object):
     def __init__(self, executor, base_logger):
         """
         :type executor: bzt.engine.modules.ScenarioExecutor
@@ -132,8 +155,8 @@ class IncarneFilesGenerator(object):
         self.payload_file = None
 
     def generate_config(self, scenario, load):
-        self.kpi_file = self.engine.create_artifact("incarne_results", ".ldjson")
-        self.stats_file = self.engine.create_artifact("incarne_health", ".ldjson")
+        self.kpi_file = self.engine.create_artifact("encarno_results", ".ldjson")
+        self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
         cfg = {
@@ -156,7 +179,7 @@ class IncarneFilesGenerator(object):
             }
         }
 
-        self.config_file = self.engine.create_artifact("incarne_cfg", ".yaml")
+        self.config_file = self.engine.create_artifact("encarno_cfg", ".yaml")
         with open(self.config_file, "w") as fp:
             yaml.safe_dump(cfg, fp)
 
@@ -189,13 +212,13 @@ class IncarneFilesGenerator(object):
         return res
 
     def get_results_reader(self):
-        return IncarneKPIReader(self.kpi_file, self.log, self.stats_file)
+        return KPIReader(self.kpi_file, self.log, self.executor.stderr.name)
 
     def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
 
         if not self.payload_file:  # generation from requests
-            self.payload_file = self.engine.create_artifact("incarne", '.ii')
+            self.payload_file = self.engine.create_artifact("encarno", '.ii')
             self.log.info("Generating payload file: %s", self.payload_file)
             self._generate_payload_inner(scenario)  # raises if there is no requests
 
@@ -230,6 +253,11 @@ class IncarneFilesGenerator(object):
                 num_requests += 1
 
         if not num_requests:
+            if scenario.get('protocol') == "dummy":
+                self.log.info("Dummy test uses dummy scenario")
+                scenario['requests'] = ["/"]
+                return self._generate_payload_inner(scenario)
+
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
@@ -299,7 +327,7 @@ def ns2sec(val):
     return int(val) / 1000000000.0
 
 
-class IncarneKPIReader(ResultsReader):
+class KPIReader(ResultsReader):
     """
     Class to read KPI
     """
@@ -310,6 +338,7 @@ class IncarneKPIReader(ResultsReader):
         self.file = FileReader(filename=filename, parent_logger=self.log)
         self.partial_buffer = ""
         self.last_ts = None
+        self.health_reader = HealthReader(health_filename, parent_logger)
 
     def _read(self, last_pass=False):
         """
@@ -317,6 +346,7 @@ class IncarneKPIReader(ResultsReader):
 
         :type last_pass: bool
         """
+        self.health_reader.read(last_pass)
 
         lines = self.file.get_lines(size=1024 * 1024, last_pass=last_pass)
 
@@ -325,7 +355,7 @@ class IncarneKPIReader(ResultsReader):
                 self.partial_buffer += line
                 continue
 
-            line = "%s%s" % (self.partial_buffer, line)
+            line = self.partial_buffer + line
             self.partial_buffer = ""
 
             try:
@@ -362,3 +392,44 @@ class IncarneKPIReader(ResultsReader):
 
     def _ramp_up_exclude(self):
         return False
+
+
+class HealthReader:
+    # waiting workers - our schedule is unable to generate fast enough
+    # no sleeping - not enough workers
+
+    def __init__(self, filename, parent_logger) -> None:
+        super().__init__()
+        self.cnt_waiting = 0
+        self.cnt_working = 0
+        self.cnt_sleeping = 0
+        self.cnt_busy = 0
+        self.log = parent_logger.getChild(self.__class__.__name__)
+        self.file = FileReader(filename=filename, parent_logger=self.log)
+        self.partial_buffer = ""
+
+    def read(self, last_pass=False):
+        lines = self.file.get_lines(size=1024 * 1024, last_pass=last_pass)
+
+        for line in lines:
+            if not line.endswith("\n"):
+                self.partial_buffer += line
+                continue
+
+            line = self.partial_buffer + line
+            self.partial_buffer = ""
+
+            if "Workers: " in line:
+                try:
+                    ts, _, line = line.partition(" ")
+                    level, _, line = line.partition(" ")
+                    parts = line.split(' ')
+                    self.cnt_waiting = int(parts[2][:-1])
+                    self.cnt_working = int(parts[4][:-1])
+                    self.cnt_sleeping = int(parts[6][:-1])
+                    self.cnt_busy = int(parts[8][:-2])
+                except KeyboardInterrupt:
+                    raise
+                except BaseException:
+                    self.log.warning("Failed to parse encarno health line: %s", traceback.format_exc())
+                    self.log.warning("The line was: %s", line)

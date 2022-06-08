@@ -14,14 +14,13 @@ type OutputConf struct {
 	// TODO CSVFile string
 	// TODO BinaryFile string
 	// TODO ReqRespFile string
-	// TODO ReqRespLevel string - all, status>=400, errors only
+	// TODO ReqRespLevel string - all, status.go>=400, errors only
 }
 
 type Output interface {
 	Start(output OutputConf)
 	Push(res *OutputItem)
 	Close()
-	GetStatusObj() Status // TODO: this is not right to have it here
 }
 
 type OutputItem struct {
@@ -65,8 +64,7 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 }
 
 type MultiFileOutput struct {
-	Outs   []SingleOut
-	Status Status
+	Outs []SingleOut
 
 	// get result from worker via channel
 	// write small binary results
@@ -75,22 +73,17 @@ type MultiFileOutput struct {
 	pipe chan *OutputItem
 }
 
-func (m *MultiFileOutput) GetStatusObj() Status {
-	return m.Status
-}
-
 func (m *MultiFileOutput) Close() {
 	for _, out := range m.Outs {
 		out.Close()
 	}
 }
 
-func (m *MultiFileOutput) Start(output OutputConf) {
+func (m *MultiFileOutput) Start(OutputConf) {
 	go m.Background()
 }
 
 func (m *MultiFileOutput) Push(res *OutputItem) {
-	res.Concurrency = m.Status.GetBusy()
 	m.pipe <- res
 }
 
@@ -103,11 +96,10 @@ func (m *MultiFileOutput) Background() {
 	}
 }
 
-func NewMultiOutput(conf OutputConf, status Status) Output {
+func NewMultiOutput(conf OutputConf) Output {
 	out := MultiFileOutput{
-		Outs:   make([]SingleOut, 0),
-		Status: status,
-		pipe:   make(chan *OutputItem),
+		Outs: make([]SingleOut, 0),
+		pipe: make(chan *OutputItem),
 	}
 
 	if conf.LDJSONFile != "" {

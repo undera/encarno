@@ -1,14 +1,14 @@
 package scenario
 
 import (
+	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"incarne/pkg/core"
 	"time"
 )
 
 // ClosedWorkload implements closed workload scenario
 type ClosedWorkload struct {
-	core.BaseWorkload
+	*core.BaseWorkload
 	InputConfig core.InputConf
 }
 
@@ -89,9 +89,9 @@ func (s *ClosedWorkload) GenerateSchedule() core.ScheduleChannel {
 	return ch
 }
 
-func NewClosedWorkload(workers core.WorkerConf, inputConfig core.InputConf, maker core.NibMaker, output core.Output) core.WorkerSpawner {
+func NewClosedWorkload(inputConfig core.InputConf, base *core.BaseWorkload) core.WorkerSpawner {
 	workload := ClosedWorkload{
-		BaseWorkload: core.NewBaseWorkload(maker, output, inputConfig, workers),
+		BaseWorkload: base,
 		InputConfig:  inputConfig,
 	}
 

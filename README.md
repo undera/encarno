@@ -1,7 +1,6 @@
-# incarne 
-- `phantom` was too "phantom", we're trying to be "in flesh", just working name, we can change it
-- https://en.wiktionary.org/wiki/in_carne_ed_ossa actually the right, maybe https://en.wiktionary.org/wiki/in_personam#Latin
-- can be `scribe` because of `nib`? more competition on GH
+# encarno 
+- `phantom` was too "phantom", we're trying to be "in flesh", https://en.wiktionary.org/wiki/encarno
+
 
 ## Vision
 - replacement for phantom, high-throughput hit-based, for the price of flexible scripting
@@ -48,40 +47,14 @@
   - udp
 
 
-Test run: `PYTHONPATH=taurus bzt taurus/incarne-module.yml taurus/test.yml -report`
+Test run: `PYTHONPATH=taurus bzt taurus/encarno-module.yml taurus/test.yml -report`
 
-To build the binary: `go build -o bin/incarne cmd/incarne/main.go`
+To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
-Dummy config:
-```yaml
----
-execution:
-  - executor: incarne
-    scenario: simple
-    concurrency: 10
-    ramp-up: 30s
-    hold-for: 1m
-
-scenarios:
-  simple:
-    protocol: dummy
-
-
-services:
-  - module: shellexec
-    prepare:
-      - go build -o bin/incarne cmd/incarne/main.go
-
-modules:
-  incarne:
-    path: bin/incarne
-
-```
 
 
 ## TODO
 
-- health stats
 - explicit option of shared input. To allow processing payload file only once.
   - respect `iterations` option from Taurus config, test it
 - http://[::1]:8070/ - should work fine

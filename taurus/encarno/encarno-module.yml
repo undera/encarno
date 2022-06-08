@@ -1,7 +1,7 @@
 ---
 modules:
-  incarne:
-    class: incarne.IncarneExecutor
+  encarno:
+    class: encarno.EncarnoExecutor
 
   csvresults:
     class: reporters.CSVFile

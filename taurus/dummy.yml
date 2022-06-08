@@ -1,0 +1,13 @@
+# file to check that it's operable
+---
+execution:
+  - executor: encarno
+    scenario: simple
+    concurrency: 1
+    throughput: 1
+    ramp-up: 1s
+    hold-for: 5s
+
+scenarios:
+  simple:
+    protocol: dummy

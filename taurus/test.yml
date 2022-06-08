@@ -1,11 +1,11 @@
 ---
 execution:
-  - executor: incarne
+  - executor: encarno
     scenario: simple
-    concurrency: 100
-    throughput: 1000
-    ramp-up: 1m
-    steps: 7
+    concurrency: 1000
+    throughput: 80000
+    ramp-up: 3m
+    #steps: 7
     #hold-for: 5m
 
 scenarios:
@@ -28,11 +28,11 @@ reporting:
 services:
   - module: shellexec
     prepare:
-      - go build -o bin/incarne cmd/incarne/main.go
+      - go build -o bin/encarno cmd/encarno/main.go
 
 modules:
-  incarne:
-    path: bin/incarne
+  encarno:
+    path: bin/encarno
 
   console:
     disable: false
