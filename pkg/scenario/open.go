@@ -139,7 +139,7 @@ func NewOpenWorkload(workers core.WorkerConf, base *core.BaseWorkload) core.Work
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
 		sumDurations: sumDurations,
-		done:         make(chan bool),
+		done:         make(chan bool, 1),
 	}
 	return &workload
 }
