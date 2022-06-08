@@ -1,62 +1,15 @@
 package scenario
 
 import (
+	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"incarne/pkg/core"
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 )
 
 func init() {
 	log.SetLevel(log.DebugLevel)
-}
-
-func TestExternal(t *testing.T) {
-	maker := func() core.Nib {
-		nib := core.DummyNib{}
-		return &nib
-	}
-
-	scen := NewOpenWorkload(core.WorkerConf{}, core.InputConf{Predefined: DummyGenerator()}, maker, &dummyOutput{Status: new(core.Status)})
-
-	scen.Run()
-	log.Infof("Final sleep")
-	time.Sleep(5 * time.Second)
-}
-
-func DummyGenerator() core.InputChannel {
-	ch := make(core.InputChannel)
-	go func() {
-		defer close(ch)
-		for i := 0; i < 1000; i++ {
-			log.Infof("Iteration %d", i)
-			item := &core.PayloadItem{
-				//TimeOffset: time.Duration(i) * 1000 * time.Millisecond,
-				Label:   "label#" + strconv.Itoa(i%3),
-				Payload: []byte("data"),
-			}
-
-			ch <- item
-		}
-	}()
-	return ch
-}
-
-type dummyOutput struct {
-}
-
-func (d dummyOutput) Close() {
-
-}
-
-func (d dummyOutput) Start(output core.OutputConf) {
-
-}
-
-func (d dummyOutput) Push(res *core.OutputItem) {
-
 }
 
 func TestOpenGenerator(t *testing.T) {

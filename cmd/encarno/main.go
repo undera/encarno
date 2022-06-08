@@ -1,13 +1,13 @@
 package main
 
 import (
+	"encarno/pkg/core"
+	"encarno/pkg/http"
+	"encarno/pkg/scenario"
 	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"incarne/pkg/core"
-	"incarne/pkg/http"
-	"incarne/pkg/scenario"
 	"io/ioutil"
 	"os"
 	"os/signal"

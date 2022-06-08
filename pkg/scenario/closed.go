@@ -1,8 +1,8 @@
 package scenario
 
 import (
+	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"incarne/pkg/core"
 	"time"
 )
 

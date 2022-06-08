@@ -1,7 +1,7 @@
 package scenario
 
 import (
-	"incarne/pkg/core"
+	"encarno/pkg/core"
 	"reflect"
 	"testing"
 	"time"

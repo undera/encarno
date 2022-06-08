@@ -1,8 +1,8 @@
 package main
 
 import (
+	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"incarne/pkg/core"
 	"os"
 	"testing"
 	"time"

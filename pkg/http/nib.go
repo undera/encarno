@@ -2,8 +2,8 @@ package http
 
 import (
 	"bufio"
+	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"incarne/pkg/core"
 	"io"
 	"net/http"
 	"time"
