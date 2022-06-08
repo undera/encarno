@@ -1,5 +1,6 @@
 # encarno 
-- `phantom` was too "phantom", we're trying to be "in flesh", https://en.wiktionary.org/wiki/encarno
+- the old [phantom](https://github.com/yandex-load/phantom) tool was too "phantom" (and not maintained), we're trying to be "in flesh", https://en.wiktionary.org/wiki/encarno
+- 
 
 
 ## Vision
@@ -12,7 +13,6 @@
 - pluggable scenario component?
 - what about scripting? each worker consumes file sequentially and dies after? with some meta-info inside
 - no need in pre-calculated stpd - native code would be good at calculating the schedule, though can be one of possible scenarios
-- make sure less memory is used => send from disk into socket
 - make pluggable into Taurus first
 - k8s injector helper tool? Would need integration with Taurus for reporting?
 
@@ -55,9 +55,16 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
 ## TODO
 
-- explicit option of shared input. To allow processing payload file only once.
-  - respect `iterations` option from Taurus config, test it
 - http://[::1]:8070/ - should work fine
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
+- option to inject into k8s
+  - inject all the files
+  - options to choose NS
+  - https://github.com/kubernetes-client/python
+  - Download artifacts back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
+
+## Parking lot
+- explicit option of shared input. To allow processing payload file only once.
+  - respect `iterations` option from Taurus config, test it
 
