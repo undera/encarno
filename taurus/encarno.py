@@ -52,6 +52,20 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
             if retcode != 0:
                 raise ToolError("%s exit code: %s" % (self.tool, retcode), self.get_error_diagnostics())
             return True
+
+        if self.widget:
+            waiting = self.reader.health_reader.cnt_waiting
+            sleeping = self.reader.health_reader.cnt_sleeping
+            label = [
+                "%r: " % self,
+                ("graph fail" if waiting > 0 else "stat-txt", "%d wait" % waiting),
+                ", ",
+                ("graph vc" if sleeping == 0 else "stat-txt", "%d sleep" % sleeping),
+                ", ",
+                "%d busy" % self.reader.health_reader.cnt_busy,
+            ]
+            self.widget.widgets[0].set_text(label)
+
         return False
 
     def shutdown(self):
@@ -373,6 +387,10 @@ class HealthReader:
 
     def __init__(self, filename, parent_logger) -> None:
         super().__init__()
+        self.cnt_waiting = 0
+        self.cnt_working = 0
+        self.cnt_sleeping = 0
+        self.cnt_busy = 0
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, parent_logger=self.log)
         self.partial_buffer = ""
@@ -393,9 +411,12 @@ class HealthReader:
                     ts, _, line = line.partition(" ")
                     level, _, line = line.partition(" ")
                     parts = line.split(' ')
-                    self.cnt_waiting = parts[2][-1]
-                    self.log.info(line)
+                    self.cnt_waiting = int(parts[2][:-1])
+                    self.cnt_working = int(parts[4][:-1])
+                    self.cnt_sleeping = int(parts[6][:-1])
+                    self.cnt_busy = int(parts[8][:-2])
                 except KeyboardInterrupt:
                     raise
                 except BaseException:
-                    self.log.warning("Failed to parse encarno health line")
+                    self.log.warning("Failed to parse encarno health line: %s", traceback.format_exc())
+                    self.log.warning("The line was: %s", line)
