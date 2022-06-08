@@ -15,11 +15,13 @@ type OpenWorkload struct {
 
 	interrupted  bool
 	sumDurations time.Duration
+	done         chan bool
 }
 
 func (s *OpenWorkload) Interrupt() {
-	s.interrupted = true // TODO: use that flag
-	// TODO: tell workers to stop
+	log.Infof("Interrupting workload")
+	s.interrupted = true
+	<-s.done
 }
 
 func (s *OpenWorkload) SpawnInitial(scheduleChan core.ScheduleChannel) {
@@ -44,6 +46,10 @@ func (s *OpenWorkload) Run() {
 
 	last := time.Duration(0)
 	for offset := range s.GenerateSchedule() {
+		if s.interrupted {
+			break
+		}
+
 		if offset < last {
 			panic("Schedule offsets have to be ever-increasing")
 		} else {
@@ -72,7 +78,10 @@ func (s *OpenWorkload) Run() {
 	// TODO: make sure workers have finished before exiting
 
 	close(scheduleChan)
+	s.Stop()
+
 	log.Infof("Open workload scenario is complete")
+	s.done <- true
 }
 
 func (s *OpenWorkload) GenerateSchedule() core.ScheduleChannel {
@@ -130,6 +139,7 @@ func NewOpenWorkload(workers core.WorkerConf, base *core.BaseWorkload) core.Work
 		MinWorkers:   workers.StartingWorkers,
 		MaxWorkers:   workers.MaxWorkers,
 		sumDurations: sumDurations,
+		done:         make(chan bool),
 	}
 	return &workload
 }

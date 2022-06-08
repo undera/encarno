@@ -98,12 +98,12 @@ func Run(config core.Configuration) {
 
 	output := core.NewMultiOutput(config.Output)
 	output.Start(config.Output)
+	defer output.Close()
 
 	nibMaker := NewNibMaker(config.Protocol)
 
-	workload := NewWorkload(config.Workers, config.Input, nibMaker, output, status)
-	workload.Run()
-	output.Close()
+	controller = NewWorkload(config.Workers, config.Input, nibMaker, output, status)
+	controller.Run()
 }
 
 func NewNibMaker(protocol core.ProtoConf) core.NibMaker {

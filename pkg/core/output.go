@@ -74,6 +74,7 @@ type MultiFileOutput struct {
 }
 
 func (m *MultiFileOutput) Close() {
+	log.Infof("Closing output")
 	for _, out := range m.Outs {
 		out.Close()
 	}
