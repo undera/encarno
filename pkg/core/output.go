@@ -10,11 +10,12 @@ import (
 )
 
 type OutputConf struct {
-	LDJSONFile string
+	LDJSONFile       string
+	ReqRespFile      string
+	ReqRespFileLevel int
+
 	// TODO CSVFile string
 	// TODO BinaryFile string
-	// TODO ReqRespFile string
-	// TODO ReqRespLevel string - all, status.go>=400, errors only
 }
 
 type Output interface {
@@ -116,6 +117,20 @@ func NewMultiOutput(conf OutputConf) Output {
 		})
 	}
 
+	if conf.ReqRespFile != "" {
+		log.Infof("Opening result file for writing: %s", conf.ReqRespFile)
+		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		out.Outs = append(out.Outs, &ReqRespOut{
+			fd:     file,
+			writer: bufio.NewWriter(file),
+			Level:  conf.ReqRespFileLevel,
+		})
+	}
+
 	return &out
 }
 
@@ -144,6 +159,39 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 }
 
 func (L *LDJSONOut) Close() {
-	L.writer.Flush()
-	L.fd.Close()
+	_ = L.writer.Flush()
+	_ = L.fd.Close()
+}
+
+type ReqRespOut struct {
+	writer *bufio.Writer
+	fd     *os.File
+	Level  int // 0 would write all, 400 - all above 400, 600 - all non-http
+}
+
+func (d ReqRespOut) Push(item *OutputItem) {
+	if item.Status >= d.Level {
+		// meta
+		data, err := json.Marshal(item)
+		if err != nil {
+			panic(err)
+		}
+		data = append(data, 13) // \r\n
+		data = append(data, 10) // \n
+
+		_, err = d.writer.Write(data)
+		if err != nil {
+			panic(err)
+		}
+
+		_, _ = d.writer.Write(item.ReqBytes)
+		_, _ = d.writer.Write([]byte{13, 10})
+		_, _ = d.writer.Write(item.RespBytes)
+		_, _ = d.writer.Write([]byte{13, 10})
+	}
+}
+
+func (d ReqRespOut) Close() {
+	_ = d.writer.Flush()
+	_ = d.fd.Close()
 }

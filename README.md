@@ -55,14 +55,17 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
 ## TODO
 
-- http://[::1]:8070/ - should work fine
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
+- http://[::1]:8070/ - should work fine
 - option to inject into k8s
   - inject all the files
   - options to choose NS
   - https://github.com/kubernetes-client/python
   - Download artifacts back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
+- unit tests
+- auto-release process
+- documentation
 
 ## Parking lot
 - explicit option of shared input. To allow processing payload file only once.

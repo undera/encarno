@@ -2,11 +2,11 @@
 execution:
   - executor: encarno
     scenario: simple
-    concurrency: 1000
-    throughput: 80000
-    ramp-up: 3m
+    concurrency: 5
+    throughput: 80
+    ramp-up: 1m
     #steps: 7
-    #hold-for: 5m
+    hold-for: 20s
 
 scenarios:
   simple:
@@ -14,13 +14,15 @@ scenarios:
     headers:
       X-Marker: value
 
-    requests: taurus/urls.txt
-    requests1:
+    requests1: taurus/urls.txt
+    requests:
       - /
       - /gimme404
       - http://127.0.0.1:8070/
       - http://[::1]:8070/
       - http://localhost:8000/
+
+    trace-level: 600
 
 reporting:
   - csvresults

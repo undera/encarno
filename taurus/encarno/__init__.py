@@ -159,6 +159,7 @@ class EncarnoFilesGenerator(object):
         self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
+        trace_level = int(scenario.get("trace-level", "1000"))
         cfg = {
             "protocol": {
                 "driver": scenario.get('protocol', 'http'),
@@ -170,7 +171,9 @@ class EncarnoFilesGenerator(object):
                 "iterationlimit": load.iterations,
             },
             "output": {
-                "ldjsonfile": self.kpi_file
+                "ldjsonfile": self.kpi_file,
+                "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",
+                "reqrespfilelevel": trace_level
             },
             "workers": {
                 "mode": "open" if load.throughput else "closed",
