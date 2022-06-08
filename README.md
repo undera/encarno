@@ -60,4 +60,4 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 - http://[::1]:8070/ - should work fine
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
-- graceful shutdown: wait for output to flush and close, interrupt workers, close input
+

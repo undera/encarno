@@ -20,11 +20,12 @@ type Worker struct {
 	Finished       bool
 	IterationCount int
 	Status         *Status
+	stopped        bool
 }
 
 func (w *Worker) Run() {
 outer:
-	for {
+	for !w.stopped {
 		// TODO: only measure single iteration with time tracker, record its ratio into result
 		select {
 		case <-w.Abort:
@@ -37,13 +38,12 @@ outer:
 			}
 		}
 	}
-	log.Debugf("Worker finished: %s", w.Name)
+	log.Infof("Worker finished: %s", w.Name)
 	w.Finished = true
 	// TODO: somehow notify workers array/count
 }
 
 func (w *Worker) Iteration() bool {
-
 	w.Status.IncWaiting()
 	offset := <-w.InputSchedule
 	w.Status.DecWaiting()
@@ -65,25 +65,32 @@ func (w *Worker) Iteration() bool {
 		w.Status.IncSleeping()
 		time.Sleep(delay) // todo: make it cancelable
 		w.Status.DecSleeping()
+
 	}
 
-	w.Status.IncBusy()
-	res := w.Nib.Punch(item)
-	res.StartTS = res.StartTime.Unix()
-	if res.Error != nil {
-		res.ErrorStr = res.Error.Error()
+	if !w.stopped {
+		w.Status.IncBusy()
+		res := w.Nib.Punch(item)
+		res.StartTS = res.StartTime.Unix()
+		if res.Error != nil {
+			res.ErrorStr = res.Error.Error()
+		}
+		res.StartMissed = res.StartTime.Sub(expectedStart)
+		res.ExtractValues(item.RegexOut, w.Values)
+		res.ReqBytes = item.Payload
+		if item.Label != "" { // allow Nib to generate own label
+			res.Label = item.Label
+		}
+		res.Concurrency = w.Status.GetBusy()
+		w.Output.Push(res)
+		w.Status.DecBusy()
 	}
-	res.StartMissed = res.StartTime.Sub(expectedStart)
-	res.ExtractValues(item.RegexOut, w.Values)
-	res.ReqBytes = item.Payload
-	if item.Label != "" { // allow Nib to generate own label
-		res.Label = item.Label
-	}
-	res.Concurrency = w.Status.GetBusy()
-	w.Output.Push(res)
-	w.Status.DecBusy()
 	w.Status.DecWorking()
 	return false
+}
+
+func (w *Worker) Stop() {
+	w.stopped = true
 }
 
 func NewBasicWorker(name string, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {

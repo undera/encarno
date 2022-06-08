@@ -48,6 +48,13 @@ func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	go worker.Run()
 }
 
+func (s *BaseWorkload) Stop() {
+	log.Infof("Telling workers to not continue...")
+	for _, worker := range s.Workers {
+		worker.Stop()
+	}
+}
+
 func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf, status *Status) *BaseWorkload {
 	var payloadGetter func() InputChannel
 	if inputConfig.EnableRegexes || wconf.Mode == WorkloadClosed {

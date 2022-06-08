@@ -10,10 +10,14 @@ import (
 type ClosedWorkload struct {
 	*core.BaseWorkload
 	InputConfig core.InputConf
+	interrupt   chan bool
+	done        chan bool
 }
 
 func (s *ClosedWorkload) Interrupt() {
-	// TODO
+	log.Infof("Interrupting workload...")
+	s.interrupt <- true
+	<-s.done
 }
 
 func (s *ClosedWorkload) Run() {
@@ -27,7 +31,9 @@ func (s *ClosedWorkload) Run() {
 		}
 	}()
 
+	gotSignal := false
 	subInitial := time.Duration(-1)
+outer:
 	for offset := range s.GenerateSchedule() {
 		// eliminate initial delay, if any
 		if subInitial < 0 {
@@ -38,23 +44,42 @@ func (s *ClosedWorkload) Run() {
 		delay := s.StartTime.Add(offset).Sub(time.Now())
 		if delay > 0 {
 			log.Debugf("Sleeping %v before starting new worker", delay)
-			time.Sleep(delay) // todo: make it cancelable
+
+			select {
+			case <-s.interrupt:
+				log.Infof("Interrupted sleep")
+				gotSignal = true
+				break outer
+			case <-time.After(delay):
+				break
+			}
 		}
 		s.SpawnWorker(sched)
 	}
 
-	duration := time.Duration(0)
-	for _, item := range s.Scenario {
-		duration += item.Duration
+	if !gotSignal {
+		duration := time.Duration(0)
+		for _, item := range s.Scenario {
+			duration += item.Duration
+		}
+
+		delay := s.StartTime.Add(duration).Sub(time.Now())
+		if delay > 0 {
+			log.Debugf("Sleeping %v to wait for end", delay)
+
+			select {
+			case <-s.interrupt:
+				log.Infof("Interrupted sleep")
+				break
+			case <-time.After(delay):
+				break
+			}
+		}
 	}
 
-	delay := s.StartTime.Add(duration).Sub(time.Now())
-	if delay > 0 {
-		log.Debugf("Sleeping %v to wait for end", delay)
-		time.Sleep(delay) // todo: make it cancelable
-	}
-
+	s.Stop()
 	log.Infof("Closed workload scenario is complete")
+	s.done <- true
 }
 
 func (s *ClosedWorkload) GenerateSchedule() core.ScheduleChannel {
@@ -93,6 +118,8 @@ func NewClosedWorkload(inputConfig core.InputConf, base *core.BaseWorkload) core
 	workload := ClosedWorkload{
 		BaseWorkload: base,
 		InputConfig:  inputConfig,
+		interrupt:    make(chan bool, 1), // buf 1 to not get stuck if nobody sleeps
+		done:         make(chan bool),
 	}
 
 	return &workload
