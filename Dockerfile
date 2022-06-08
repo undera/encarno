@@ -27,4 +27,4 @@ RUN pip install /tmp/taurus
 
 RUN bzt /tmp/taurus/dummy.yml # sanity test
 
-ENTRYPOINT TODO
+ENTRYPOINT ["sh", "-c", "bzt \"$@\"", "ignored"]
