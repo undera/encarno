@@ -16,11 +16,7 @@ func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: &ConnPool{
-			Idle:           make(map[string]ConnChan),
-			MaxConnections: 100,
-			Timeout:        1 * time.Second,
-		},
+		ConnPool: NewConnectionPool(100, 1*time.Second),
 	}
 
 	type Item struct {
