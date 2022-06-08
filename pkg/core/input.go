@@ -98,7 +98,7 @@ func ReadPayloadRecord(file *os.File, buf []byte) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// skip inter-record separators

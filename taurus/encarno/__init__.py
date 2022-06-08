@@ -221,7 +221,7 @@ class EncarnoFilesGenerator(object):
         self.payload_file = self.executor.get_script_path()
 
         if not self.payload_file:  # generation from requests
-            self.payload_file = self.engine.create_artifact("encarno", '.ep')
+            self.payload_file = self.engine.create_artifact("encarno", '.enc')
             self.log.info("Generating payload file: %s", self.payload_file)
             self._generate_payload_inner(scenario)  # raises if there is no requests
 
