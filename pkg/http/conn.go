@@ -99,7 +99,7 @@ func (r *BufferedConn) Read(p []byte) (int, error) {
 }
 
 func (r *BufferedConn) Close() error {
-	log.Debugf("Closing connection")
+	log.Debugf("Closing buffered connection")
 	r.mx.Lock()
 	defer r.mx.Unlock()
 	r.Canceled = true

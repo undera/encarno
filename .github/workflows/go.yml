@@ -30,9 +30,9 @@ jobs:
       - name: Test
         run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v1.0.2
-        with:
-          #token: {{your codecov token, can be found at https://codecov.io/gh/<github_username>/<repo>/settings/badge}}
-          file: ./coverage.txt
-          flags: unittests
+      #- name: Upload coverage report
+      #  uses: codecov/codecov-action@v1.0.2
+      #  with:
+      #    #token: {{your codecov token, can be found at https://codecov.io/gh/<github_username>/<repo>/settings/badge}}
+      #    file: ./coverage.txt
+      #    flags: unittests

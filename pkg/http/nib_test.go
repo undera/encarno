@@ -94,8 +94,8 @@ func TestConnClose(t *testing.T) {
 	item := Item{
 		inp: core.PayloadItem{
 			Hostname: hostname,
-			Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
-			// Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"),
+			// Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
+			Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"),
 		},
 	}
 
@@ -109,6 +109,7 @@ func TestConnClose(t *testing.T) {
 		res := nib.Punch(&item.inp)
 
 		t.Logf("Status: %d %v", res.Status, res.Error)
+		t.Logf("Response:\n%s", res.RespBytes)
 
 		if res.Error != nil {
 			t.Errorf("Should not fail: %s", res.Error)
