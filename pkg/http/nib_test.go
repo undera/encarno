@@ -27,37 +27,37 @@ func TestOne(t *testing.T) {
 	items := []Item{
 		{
 			inp: core.PayloadItem{
-				Hostname: hostname,
-				Payload:  []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
+				Address: hostname,
+				Payload: []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: hostname,
-				Payload:  []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
+				Address: hostname,
+				Payload: []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "yandex.ru",
-				Payload:  []byte("GET / HTTP/1.1\r\n\r\n"),
+				Address: "yandex.ru",
+				Payload: []byte("GET / HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "https://yandex.ru",
-				Payload:  []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
+				Address: "https://yandex.ru",
+				Payload: []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "httpbin.org",
-				Payload:  []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
+				Address: "httpbin.org",
+				Payload: []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "httpbin.org",
+				Address:  "httpbin.org",
 				Payload:  []byte("POST /anything HTTP/1.1\r\nHost:httpbin.org\r\nX-Hdr: ${input}\r\n\r\n"), // "test ${input} while producing 123"
 				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
 			},
@@ -65,7 +65,7 @@ func TestOne(t *testing.T) {
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "notexistent",
+				Address: "notexistent",
 			},
 		},
 	}
@@ -75,7 +75,7 @@ func TestOne(t *testing.T) {
 
 		t.Logf("Status: %d %v", res.Status, res.Error)
 
-		//<-nib.transport.Idle[item.inp.Hostname]
+		//<-nib.transport.Idle[item.inp.Address]
 	}
 }
 
@@ -93,7 +93,7 @@ func TestConnClose(t *testing.T) {
 
 	item := Item{
 		inp: core.PayloadItem{
-			Hostname: hostname,
+			Address: hostname,
 			// Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 			Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"),
 		},
@@ -138,8 +138,8 @@ func TestTLSIssues(t *testing.T) {
 
 	item := Item{
 		inp: core.PayloadItem{
-			Hostname: "https://13.225.244.117",
-			Payload:  []byte("GET /optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js HTTP/1.1\r\nHost: statics.otomoto.pl\r\nConnection: close\r\n\r\n"),
+			Address: "https://13.225.244.117",
+			Payload: []byte("GET /optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js HTTP/1.1\r\nHost: statics.otomoto.pl\r\nConnection: close\r\n\r\n"),
 		},
 	}
 
@@ -168,8 +168,8 @@ func TestLoop(t *testing.T) {
 	}
 
 	item := core.PayloadItem{
-		Hostname: hostname,
-		Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
+		Address: hostname,
+		Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 	}
 
 	start := time.Now()
