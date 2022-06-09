@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -18,43 +19,49 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 		StartTime: time.Now(),
 	}
 
-	conn := n.sendRequest(item, &outItem)
+	conn, req := n.sendRequest(item, &outItem)
 	if outItem.Error != nil {
 		return &outItem
 	}
 
-	n.readResponse(item, conn, &outItem)
+	n.readResponse(item, conn, &outItem, req)
 	outItem.Elapsed = time.Now().Sub(outItem.StartTime)
 	return &outItem
 }
 
-func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) *BufferedConn {
+func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, *http.Request) {
 	before := time.Now()
-	conn, err := n.ConnPool.Get(item.Hostname)
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(item.Payload))) // FIXME: optimize it
 	if err != nil {
 		outItem.EndWithError(err)
-		return nil
+		return nil, req
+	}
+
+	conn, err := n.ConnPool.Get(item.Hostname, req.Host)
+	if err != nil {
+		outItem.EndWithError(err)
+		return nil, req
 	}
 	connected := time.Now()
 	outItem.ConnectTime = connected.Sub(before)
 
 	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
 		outItem.EndWithError(err)
-		return nil
+		return nil, req
 	}
 
 	log.Debugf("Writing %d bytes into connection", len(item.Payload))
 	if write, err := conn.Write(item.Payload); err != nil {
 		outItem.EndWithError(err)
-		return nil
+		return nil, req
 	} else {
 		outItem.SentBytesCount = write
 		outItem.SentTime = time.Now().Sub(connected)
 	}
-	return conn
+	return conn, req
 }
 
-func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem) {
+func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem, req *http.Request) {
 	begin := time.Now()
 	reader := bufio.NewReader(conn)
 	resp, err := http.ReadResponse(reader, nil)
@@ -86,7 +93,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	result.Status = resp.StatusCode
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
-	if resp.Close {
+	if resp.Close || req.Close {
 		err := conn.Close()
 		if err != nil {
 			log.Warningf("Failed to close connection: %s", err)

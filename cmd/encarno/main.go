@@ -114,7 +114,7 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 			return &core.DummyNib{}
 		}
 	case "http":
-		pool := http.NewConnectionPool(protocol.MaxConnections, protocol.Timeout)
+		pool := http.NewConnectionPool(protocol.MaxConnections, protocol.Timeout, protocol)
 
 		return func() core.Nib {
 			return &http.Nib{

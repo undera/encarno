@@ -16,7 +16,7 @@ func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	type Item struct {
@@ -83,7 +83,7 @@ func TestConnClose(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	type Item struct {
@@ -118,11 +118,53 @@ func TestConnClose(t *testing.T) {
 	}
 }
 
+func TestTLSIssues(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	res, err := http.Get("https://statics.otomoto.pl/optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js")
+	log.Debugf("%s, %v", res.Status, err)
+
+	nib := Nib{
+		ConnPool: NewConnectionPool(100, 5*time.Second, core.ProtoConf{
+			TLSConf: core.TLSConf{
+				TLSCipherSuites: []string{"TLS_AES_128_GCM_SHA256"},
+			},
+		}),
+	}
+
+	type Item struct {
+		inp core.PayloadItem
+		out string
+	}
+
+	item := Item{
+		inp: core.PayloadItem{
+			Hostname: "https://13.225.244.117",
+			Payload:  []byte("GET /optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js HTTP/1.1\r\nHost: statics.otomoto.pl\r\nConnection: close\r\n\r\n"),
+		},
+	}
+
+	items := []Item{
+		item,
+	}
+
+	for _, item := range items {
+		res := nib.Punch(&item.inp)
+
+		t.Logf("Status: %d %v", res.Status, res.Error)
+		t.Logf("Response:\n%s", res.RespBytes)
+
+		if res.Error != nil {
+			t.Errorf("Should not fail: %s", res.Error)
+			t.FailNow()
+		}
+	}
+}
+
 func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	item := core.PayloadItem{
@@ -148,7 +190,7 @@ func TestLoop(t *testing.T) {
 }
 
 func TestLoopNative(t *testing.T) {
-	return
+	return // was used to compare the performance
 	start := time.Now()
 	i := float64(0)
 	for ; i < 100000; i++ {

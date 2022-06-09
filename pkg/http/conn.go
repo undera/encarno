@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encarno/pkg/core"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -71,7 +72,7 @@ func (r *BufferedConn) readLoop() {
 	}
 	log.Debugf("Done reading loop")
 
-	r.Close()
+	_ = r.Close()
 	r.loopDone = true
 }
 
@@ -129,24 +130,21 @@ type ConnPool struct {
 	MaxConnections int
 	Timeout        time.Duration
 	resolver       *RRResolver
-	plainDialer    net.Dialer
-	tlsDialer      tls.Dialer
+	plainDialer    *net.Dialer
+	tlsDialers     sync.Map
+	TLSConf        core.TLSConf
 }
 
-func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
+func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
 	plainDialer := net.Dialer{
 		Timeout: timeout,
 	}
 
 	pool := &ConnPool{
-		resolver:    NewResolver(),
-		plainDialer: plainDialer,
-		tlsDialer: tls.Dialer{
-			NetDialer: &plainDialer,
-			Config: &tls.Config{
-				InsecureSkipVerify: true, // TODO: make configurable
-			},
-		},
+		resolver:       NewResolver(),
+		plainDialer:    &plainDialer,
+		TLSConf:        pconf.TLSConf,
+		tlsDialers:     sync.Map{},
 		Idle:           sync.Map{},
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
@@ -154,7 +152,7 @@ func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
 	return pool
 }
 
-func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
+func (p *ConnPool) Get(hostname string, hostHint string) (*BufferedConn, error) {
 	// lazy initialize per-host pool
 	var ch ConnChan
 	if c, ok := p.Idle.Load(hostname); ok {
@@ -179,7 +177,7 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 	default:
 
 	}
-	c, err := p.openConnection(hostname)
+	c, err := p.openConnection(hostname, hostHint)
 	if err == nil {
 		return newBufferedConn(c), nil
 	} else {
@@ -187,7 +185,7 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 	}
 }
 
-func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
+func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error) {
 	log.Debugf("Opening new connection to %s", hostname)
 
 	if !strings.Contains(hostname, "://") {
@@ -215,7 +213,8 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 			host = host + ":443"
 		}
 
-		return p.tlsDialer.DialContext(ctx, "tcp", host)
+		log.Debugf("Dialing TLS: %s", host)
+		return p.tlsDialerForHost(parsed.Host, hint).DialContext(ctx, "tcp", host)
 	} else {
 		if foundSep { //FIXME: ipv6 won't work well
 			host = host + ":" + port
@@ -223,6 +222,7 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 			host = host + ":80"
 		}
 
+		log.Debugf("Dialing plain: %s", host)
 		return p.plainDialer.DialContext(ctx, "tcp", host)
 	}
 }
@@ -232,6 +232,42 @@ func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 		load, _ := p.Idle.Load(hostname) // can not fail in practice
 		load.(ConnChan) <- conn
 	}
+}
+
+func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
+	if obj, ok := p.tlsDialers.Load(host); ok {
+		return obj.(*tls.Dialer)
+	}
+
+	tlsConfig := tls.Config{
+		ServerName:         hint,
+		CipherSuites:       []uint16{},
+		InsecureSkipVerify: p.TLSConf.InsecureSkipVerify,
+		//MinVersion:         tls.VersionTLS12,
+		//MaxVersion:         tls.VersionTLS12,
+	}
+
+	for _, suite := range p.TLSConf.TLSCipherSuites {
+		for _, c := range tls.CipherSuites() {
+			if c.Name == suite {
+				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
+			}
+		}
+		for _, c := range tls.InsecureCipherSuites() {
+			if c.Name == suite {
+				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
+			}
+		}
+	}
+
+	dialer := &tls.Dialer{
+		NetDialer: p.plainDialer,
+		Config:    &tlsConfig,
+	}
+
+	p.tlsDialers.Store(host, dialer)
+
+	return dialer
 }
 
 func NewResolver() *RRResolver {
