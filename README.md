@@ -47,14 +47,35 @@
   - udp
 
 
-Test run: `PYTHONPATH=taurus bzt taurus/encarno-module.yml taurus/test.yml -report`
+Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
 
 To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
 
+```text
+{"PayloadLen": 57, "Hostname": "http://localhost:8070", "Label": "/"}
+GET / HTTP/1.1
+Host: localhost:8070
+X-Marker: value
+
+
+{"PayloadLen": 65, "Hostname": "http://localhost:8070", "Label": "/gimme404"}
+GET /gimme404 HTTP/1.1
+Host: localhost:8070
+X-Marker: value
+
+
+```
 
 ## TODO
 
+- rename `Hostname` into `Address` in payload input file 
+- allow configuring TLS options
+- limit len of auto-label for long GET urls
+- figure out the issue with steps on the response time graph
+- Use "startMissed" in self health
+- test it with `Connection: close` in requests
+- tls options
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
 - http://[::1]:8070/ - should work fine
@@ -71,4 +92,3 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 - udp protocol nib
 - explicit option of shared input. To allow processing payload file only once.
   - respect `iterations` option from Taurus config, test it
-

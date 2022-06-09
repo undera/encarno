@@ -58,6 +58,7 @@ func NewInput(config InputConf) InputChannel {
 		return config.Predefined
 	}
 
+	log.Infof("Opening payload input file: %s", config.PayloadFile)
 	file, err := os.Open(config.PayloadFile)
 	if err != nil {
 		panic(err)
@@ -97,7 +98,7 @@ func ReadPayloadRecord(file *os.File, buf []byte) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// skip inter-record separators
