@@ -71,7 +71,6 @@ X-Marker: value
 
 - figure out the issue with steps on the response time graph
  
-- limit len of auto-label for long GET urls
 - Use "startMissed" in self health
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
@@ -86,6 +85,7 @@ X-Marker: value
 - documentation
 
 ## Parking lot
+- limit len of auto-label for long GET urls
 - udp protocol nib
 - explicit option of shared input. To allow processing payload file only once.
   - respect `iterations` option from Taurus config, test it

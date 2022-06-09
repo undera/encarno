@@ -34,12 +34,12 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 	hostHint, connClose := getHostAndConnHeaderValues(item.Payload)
 
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
+	connected := time.Now()
+	outItem.ConnectTime = connected.Sub(before)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil, connClose
 	}
-	connected := time.Now()
-	outItem.ConnectTime = connected.Sub(before)
 
 	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
 		outItem.EndWithError(err)
@@ -47,12 +47,12 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 	}
 
 	log.Debugf("Writing %d bytes into connection", len(item.Payload))
-	if write, err := conn.Write(item.Payload); err != nil {
+	write, err := conn.Write(item.Payload)
+	outItem.SentBytesCount = write
+	outItem.SentTime = time.Now().Sub(connected)
+	if err != nil {
 		outItem.EndWithError(err)
 		return nil, connClose
-	} else {
-		outItem.SentBytesCount = write
-		outItem.SentTime = time.Now().Sub(connected)
 	}
 	return conn, connClose
 }
@@ -76,6 +76,8 @@ func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
 		if string(hname) == "Connection" || string(hname) == "connection" {
 			close = strings.TrimSpace(string(hval)) == "close"
 		}
+
+		// TODO if found both - stop looking
 
 		payload = after
 	}
