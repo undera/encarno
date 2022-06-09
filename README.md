@@ -47,7 +47,7 @@
   - udp
 
 
-Test run: `PYTHONPATH=taurus bzt taurus/encarno-module.yml taurus/test.yml -report`
+Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
 
 To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
@@ -69,6 +69,13 @@ X-Marker: value
 
 ## TODO
 
+- rename `Hostname` into `Address` in payload input file 
+- allow configuring TLS options
+- limit len of auto-label for long GET urls
+- figure out the issue with steps on the response time graph
+- Use "startMissed" in self health
+- test it with `Connection: close` in requests
+- tls options
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
 - http://[::1]:8070/ - should work fine
