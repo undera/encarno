@@ -130,13 +130,14 @@ func (r *BufferedConn) Reset() {
 type ConnChan = chan *BufferedConn
 
 type ConnPool struct {
-	Idle           sync.Map
+	Idle           map[string]ConnChan
 	MaxConnections int
 	Timeout        time.Duration
 	resolver       *RRResolver
 	plainDialer    *net.Dialer
-	tlsDialers     sync.Map
+	tlsDialers     map[string]*tls.Dialer
 	TLSConf        core.TLSConf
+	mx             *sync.Mutex
 }
 
 func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
@@ -148,23 +149,26 @@ func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.Pro
 		resolver:       NewResolver(),
 		plainDialer:    &plainDialer,
 		TLSConf:        pconf.TLSConf,
-		tlsDialers:     sync.Map{},
-		Idle:           sync.Map{},
+		tlsDialers:     map[string]*tls.Dialer{},
+		Idle:           map[string]ConnChan{},
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
+		mx:             new(sync.Mutex),
 	}
 	return pool
 }
 
 func (p *ConnPool) Get(hostname string, hostHint string) (*BufferedConn, error) {
 	// lazy initialize per-host pool
+	p.mx.Lock()
 	var ch ConnChan
-	if c, ok := p.Idle.Load(hostname); ok {
-		ch = c.(ConnChan)
+	if c, ok := p.Idle[hostname]; ok {
+		ch = c
 	} else {
 		ch = make(ConnChan, p.MaxConnections)
-		p.Idle.Store(hostname, ch)
+		p.Idle[hostname] = ch
 	}
+	p.mx.Unlock()
 
 	select {
 	case conn := <-ch:
@@ -179,7 +183,7 @@ func (p *ConnPool) Get(hostname string, hostHint string) (*BufferedConn, error) 
 			return conn, nil
 		}
 	default:
-
+		log.Debugf("No idle connections to reuse for %s", hostname)
 	}
 	c, err := p.openConnection(hostname, hostHint)
 	if err == nil {
@@ -237,22 +241,24 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if conn.GetErr() == nil && !conn.Canceled {
-		load, _ := p.Idle.Load(hostname) // can not fail in practice
-		load.(ConnChan) <- conn
+		idle := p.Idle[hostname] // can not fail in practice
+		idle <- conn
 	}
 }
 
 func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
-	if obj, ok := p.tlsDialers.Load(host); ok {
-		return obj.(*tls.Dialer)
+	p.mx.Lock()
+	defer p.mx.Unlock()
+	if obj, ok := p.tlsDialers[host]; ok {
+		return obj
 	}
 
 	tlsConfig := tls.Config{
 		ServerName:         hint,
 		CipherSuites:       []uint16{},
 		InsecureSkipVerify: p.TLSConf.InsecureSkipVerify,
-		//MinVersion:         tls.VersionTLS12,
-		//MaxVersion:         tls.VersionTLS12,
+		MinVersion:         p.TLSConf.MinVersion,
+		MaxVersion:         p.TLSConf.MaxVersion,
 	}
 
 	for _, suite := range p.TLSConf.TLSCipherSuites {
@@ -273,7 +279,7 @@ func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
 		Config:    &tlsConfig,
 	}
 
-	p.tlsDialers.Store(host, dialer)
+	p.tlsDialers[host] = dialer
 
 	return dialer
 }

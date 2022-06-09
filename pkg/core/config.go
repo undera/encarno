@@ -14,6 +14,8 @@ type Configuration struct {
 type TLSConf struct {
 	InsecureSkipVerify bool
 	TLSCipherSuites    []string
+	MinVersion         uint16
+	MaxVersion         uint16
 }
 
 type ProtoConf struct {

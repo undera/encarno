@@ -165,6 +165,7 @@ class EncarnoFilesGenerator(object):
                 "driver": scenario.get('protocol', 'http'),
                 "timeout": "%ss" % timeout,
                 "maxConnections": load.concurrency,
+                "tlsconf": scenario.get("tls-config", {})
             },
             "input": {
                 "payloadfile": self.payload_file,
