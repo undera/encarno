@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -29,6 +30,7 @@ type BufferedConn struct {
 	closed          bool
 	loopDone        bool
 	mx              *sync.Mutex
+	BufReader       *bufio.Reader
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
@@ -39,6 +41,8 @@ func newBufferedConn(c net.Conn) *BufferedConn {
 		readChunks:      make(chan []byte),
 		mx:              new(sync.Mutex),
 	}
+	conn.BufReader = bufio.NewReader(conn)
+
 	go conn.readLoop()
 	return conn
 }
@@ -211,6 +215,10 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 			host = host + ":" + port
 		} else {
 			host = host + ":443"
+		}
+
+		if hint == "" {
+			hint = parsed.Host
 		}
 
 		log.Debugf("Dialing TLS: %s", host)

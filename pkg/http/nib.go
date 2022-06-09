@@ -1,12 +1,12 @@
 package http
 
 import (
-	"bufio"
 	"bytes"
 	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -19,52 +19,72 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 		StartTime: time.Now(),
 	}
 
-	conn, req := n.sendRequest(item, &outItem)
+	conn, connClose := n.sendRequest(item, &outItem)
 	if outItem.Error != nil {
 		return &outItem
 	}
 
-	n.readResponse(item, conn, &outItem, req)
+	n.readResponse(item, conn, &outItem, connClose)
 	outItem.Elapsed = time.Now().Sub(outItem.StartTime)
 	return &outItem
 }
 
-func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, *http.Request) {
+func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, bool) {
 	before := time.Now()
-	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(item.Payload))) // FIXME: optimize it
-	if err != nil {
-		outItem.EndWithError(err)
-		return nil, req
-	}
+	hostHint, connClose := getHostAndConnHeaderValues(item.Payload)
 
-	conn, err := n.ConnPool.Get(item.Hostname, req.Host)
+	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	if err != nil {
 		outItem.EndWithError(err)
-		return nil, req
+		return nil, connClose
 	}
 	connected := time.Now()
 	outItem.ConnectTime = connected.Sub(before)
 
 	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
 		outItem.EndWithError(err)
-		return nil, req
+		return nil, connClose
 	}
 
 	log.Debugf("Writing %d bytes into connection", len(item.Payload))
 	if write, err := conn.Write(item.Payload); err != nil {
 		outItem.EndWithError(err)
-		return nil, req
+		return nil, connClose
 	} else {
 		outItem.SentBytesCount = write
 		outItem.SentTime = time.Now().Sub(connected)
 	}
-	return conn, req
+	return conn, connClose
 }
 
-func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem, req *http.Request) {
+func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
+	nlSep := []byte{10}
+	colonSep := []byte{':'}
+	_, _, _ = bytes.Cut(payload, nlSep) // swallow req line
+	for {                               // read headers
+		before, after, found := bytes.Cut(payload, nlSep)
+		if !found || len(after) < 2 { // minimal possible header is "x:"
+			break
+		}
+
+		hname, hval, found := bytes.Cut(before, colonSep)
+
+		if string(hname) == "Host" || string(hname) == "host" {
+			host = strings.TrimSpace(string(hval))
+		}
+
+		if string(hname) == "Connection" || string(hname) == "connection" {
+			close = strings.TrimSpace(string(hval)) == "close"
+		}
+
+		payload = after
+	}
+	return
+}
+
+func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem, connClose bool) {
 	begin := time.Now()
-	reader := bufio.NewReader(conn)
-	resp, err := http.ReadResponse(reader, nil)
+	resp, err := http.ReadResponse(conn.BufReader, nil)
 	if err != nil {
 		result.EndWithError(err)
 		return
@@ -93,13 +113,13 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	result.Status = resp.StatusCode
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
-	if resp.Close || req.Close {
+	if resp.Close || connClose {
 		err := conn.Close()
 		if err != nil {
 			log.Warningf("Failed to close connection: %s", err)
 		}
 	} else {
-		n.ConnPool.Return(item.Hostname, conn)
+		n.ConnPool.Return(item.Address, conn)
 	}
 }
 
