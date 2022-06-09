@@ -79,6 +79,44 @@ func TestOne(t *testing.T) {
 	}
 }
 
+func TestConnClose(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	nib := Nib{
+		ConnPool: NewConnectionPool(100, 1*time.Second),
+	}
+
+	type Item struct {
+		inp core.PayloadItem
+		out string
+	}
+
+	item := Item{
+		inp: core.PayloadItem{
+			Hostname: hostname,
+			Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
+			// Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"),
+		},
+	}
+
+	items := []Item{
+		item,
+		item,
+		item,
+	}
+
+	for _, item := range items {
+		res := nib.Punch(&item.inp)
+
+		t.Logf("Status: %d %v", res.Status, res.Error)
+
+		if res.Error != nil {
+			t.Errorf("Should not fail: %s", res.Error)
+			t.FailNow()
+		}
+	}
+}
+
 func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 

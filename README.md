@@ -69,13 +69,13 @@ X-Marker: value
 
 ## TODO
 
-- rename `Hostname` into `Address` in payload input file 
 - allow configuring TLS options
-- limit len of auto-label for long GET urls
-- figure out the issue with steps on the response time graph
-- Use "startMissed" in self health
 - test it with `Connection: close` in requests
-- tls options
+- figure out the issue with steps on the response time graph
+ 
+- rename `Hostname` into `Address` in payload input file 
+- limit len of auto-label for long GET urls
+- Use "startMissed" in self health
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
 - http://[::1]:8070/ - should work fine
