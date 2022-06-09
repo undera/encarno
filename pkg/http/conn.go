@@ -58,14 +58,16 @@ func (r *BufferedConn) readLoop() {
 		r.ReadLen += n
 		log.Debugf("Read %d/%d bytes, err: %v", n, r.ReadLen, err)
 
+		buf := make([]byte, n)
+		copy(buf, r.buf[:n])
 		if (r.ReadRecordLimit <= 0 || r.ReadLen <= r.ReadRecordLimit) && n > 0 {
-			_, err := r.ReadRecorded.Write(r.buf[:n])
+			_, err := r.ReadRecorded.Write(buf)
 			if err != nil {
 				panic(err)
 			}
 		}
 
-		r.readChunks <- r.buf[:n]
+		r.readChunks <- buf
 	}
 	log.Debugf("Done reading loop")
 
@@ -97,7 +99,7 @@ func (r *BufferedConn) Read(p []byte) (int, error) {
 }
 
 func (r *BufferedConn) Close() error {
-	log.Debugf("Closing connection")
+	log.Debugf("Closing buffered connection")
 	r.mx.Lock()
 	defer r.mx.Unlock()
 	r.Canceled = true
