@@ -76,7 +76,7 @@ func (r *BufferedConn) readLoop() {
 	}
 	log.Debugf("Done reading loop")
 
-	_ = r.Close()
+	r.Close()
 	r.loopDone = true
 }
 
@@ -103,7 +103,7 @@ func (r *BufferedConn) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (r *BufferedConn) Close() error {
+func (r *BufferedConn) Close() {
 	log.Debugf("Closing buffered connection")
 	r.mx.Lock()
 	defer r.mx.Unlock()
@@ -118,8 +118,6 @@ func (r *BufferedConn) Close() error {
 			log.Warningf("Failed to close connection: %s", err)
 		}
 	}
-
-	return nil
 }
 
 func (r *BufferedConn) Reset() {

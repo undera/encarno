@@ -114,10 +114,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
 	if resp.Close || connClose {
-		err := conn.Close()
-		if err != nil {
-			log.Warningf("Failed to close connection: %s", err)
-		}
+		go conn.Close()
 	} else {
 		n.ConnPool.Return(item.Address, conn)
 	}
