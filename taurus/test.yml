@@ -2,30 +2,30 @@
 execution:
   - executor: encarno
     scenario: simple
-    concurrency: 5
-    throughput: 80
-    ramp-up: 1m
-    #steps: 7
-    hold-for: 20s
+    concurrency: 20
+    #throughput: 60000
+    ramp-up: 5m
+    # steps: 60
+    #hold-for: 20s
 
 scenarios:
   simple:
     default-address: http://localhost:8070/
-    headers:
-      X-Marker: value
+    #headers:
+    #  X-Marker: value
 
     requests1: taurus/urls.txt
     requests:
       - /
-      - /gimme404
-      - http://127.0.0.1:8070/
-      - http://[::1]:8070/
-      - http://localhost:8000/
+      #- /gimme404
+      #- http://127.0.0.1:8070/
+      #- http://[::1]:8070/
+      #- http://localhost:8000/
 
-    trace-level: 600
+    #trace-level: 600
 
-reporting:
-  - csvresults
+#reporting:
+#  - csvresults
 
 services:
   - module: shellexec

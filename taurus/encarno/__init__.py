@@ -165,6 +165,7 @@ class EncarnoFilesGenerator(object):
                 "driver": scenario.get('protocol', 'http'),
                 "timeout": "%ss" % timeout,
                 "maxConnections": load.concurrency,
+                "tlsconf": scenario.get("tls-config", {})
             },
             "input": {
                 "payloadfile": self.payload_file,
@@ -244,7 +245,7 @@ class EncarnoFilesGenerator(object):
 
                 metadata = {
                     "PayloadLen": len(tcp_payload.encode('utf-8')),
-                    "Hostname": host,
+                    "Address": host,
                     "Label": request.label,
                 }
 
@@ -264,7 +265,7 @@ class EncarnoFilesGenerator(object):
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
-        hostUrl, netloc, path = self._get_request_path(request, scenario)
+        host_url, netloc, path = self._get_request_path(request, scenario)
         payload = "%s %s HTTP/1.1\r\n" % (request.method, path)
         headers = BetterDict.from_dict({"Host": netloc})
         if not scenario.get("keepalive", True):
@@ -288,7 +289,7 @@ class EncarnoFilesGenerator(object):
         for header, value in headers.items():
             payload += "%s: %s\r\n" % (header, value)
         payload += "\r\n%s" % (body,)
-        return hostUrl, payload
+        return host_url, payload
 
     def _get_request_path(self, request, scenario):
         parsed_url = urlparse(request.url)

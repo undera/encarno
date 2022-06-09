@@ -29,7 +29,7 @@ type ScheduleChannel chan time.Duration
 
 type PayloadItem struct {
 	Label      string
-	Hostname   string
+	Address    string
 	Payload    []byte
 	PayloadLen int
 	RegexOut   map[string]*ExtractRegex

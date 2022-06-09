@@ -2,7 +2,3 @@
 modules:
   encarno:
     class: encarno.EncarnoExecutor
-
-  csvresults:
-    class: reporters.CSVFile
-

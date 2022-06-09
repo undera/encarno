@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+func TestConfig(t *testing.T) {
+	cfg := "/media/BIG/bzt-artifacts/2022-06-09_15-04-45.058010/encarno_cfg.yaml"
+	if _, err := os.Stat(cfg); err == nil {
+		config := LoadConfig(cfg)
+		Run(config)
+	}
+}
+
 func TestOpen(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 

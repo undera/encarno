@@ -1,9 +1,11 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encarno/pkg/core"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -28,6 +30,7 @@ type BufferedConn struct {
 	closed          bool
 	loopDone        bool
 	mx              *sync.Mutex
+	BufReader       *bufio.Reader
 }
 
 func newBufferedConn(c net.Conn) *BufferedConn {
@@ -38,6 +41,8 @@ func newBufferedConn(c net.Conn) *BufferedConn {
 		readChunks:      make(chan []byte),
 		mx:              new(sync.Mutex),
 	}
+	conn.BufReader = bufio.NewReader(conn)
+
 	go conn.readLoop()
 	return conn
 }
@@ -98,7 +103,7 @@ func (r *BufferedConn) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (r *BufferedConn) Close() error {
+func (r *BufferedConn) Close() {
 	log.Debugf("Closing buffered connection")
 	r.mx.Lock()
 	defer r.mx.Unlock()
@@ -113,8 +118,6 @@ func (r *BufferedConn) Close() error {
 			log.Warningf("Failed to close connection: %s", err)
 		}
 	}
-
-	return nil
 }
 
 func (r *BufferedConn) Reset() {
@@ -125,44 +128,45 @@ func (r *BufferedConn) Reset() {
 type ConnChan = chan *BufferedConn
 
 type ConnPool struct {
-	Idle           sync.Map
+	Idle           map[string]ConnChan
 	MaxConnections int
 	Timeout        time.Duration
 	resolver       *RRResolver
-	plainDialer    net.Dialer
-	tlsDialer      tls.Dialer
+	plainDialer    *net.Dialer
+	tlsDialers     map[string]*tls.Dialer
+	TLSConf        core.TLSConf
+	mx             *sync.Mutex
 }
 
-func NewConnectionPool(maxConnections int, timeout time.Duration) *ConnPool {
+func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
 	plainDialer := net.Dialer{
 		Timeout: timeout,
 	}
 
 	pool := &ConnPool{
-		resolver:    NewResolver(),
-		plainDialer: plainDialer,
-		tlsDialer: tls.Dialer{
-			NetDialer: &plainDialer,
-			Config: &tls.Config{
-				InsecureSkipVerify: true, // TODO: make configurable
-			},
-		},
-		Idle:           sync.Map{},
+		resolver:       NewResolver(),
+		plainDialer:    &plainDialer,
+		TLSConf:        pconf.TLSConf,
+		tlsDialers:     map[string]*tls.Dialer{},
+		Idle:           map[string]ConnChan{},
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
+		mx:             new(sync.Mutex),
 	}
 	return pool
 }
 
-func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
+func (p *ConnPool) Get(hostname string, hostHint string) (*BufferedConn, error) {
 	// lazy initialize per-host pool
+	p.mx.Lock()
 	var ch ConnChan
-	if c, ok := p.Idle.Load(hostname); ok {
-		ch = c.(ConnChan)
+	if c, ok := p.Idle[hostname]; ok {
+		ch = c
 	} else {
 		ch = make(ConnChan, p.MaxConnections)
-		p.Idle.Store(hostname, ch)
+		p.Idle[hostname] = ch
 	}
+	p.mx.Unlock()
 
 	select {
 	case conn := <-ch:
@@ -177,9 +181,9 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 			return conn, nil
 		}
 	default:
-
+		log.Debugf("No idle connections to reuse for %s", hostname)
 	}
-	c, err := p.openConnection(hostname)
+	c, err := p.openConnection(hostname, hostHint)
 	if err == nil {
 		return newBufferedConn(c), nil
 	} else {
@@ -187,7 +191,7 @@ func (p *ConnPool) Get(hostname string) (*BufferedConn, error) {
 	}
 }
 
-func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
+func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error) {
 	log.Debugf("Opening new connection to %s", hostname)
 
 	if !strings.Contains(hostname, "://") {
@@ -215,7 +219,12 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 			host = host + ":443"
 		}
 
-		return p.tlsDialer.DialContext(ctx, "tcp", host)
+		if hint == "" {
+			hint = parsed.Host
+		}
+
+		log.Debugf("Dialing TLS: %s", host)
+		return p.tlsDialerForHost(parsed.Host, hint).DialContext(ctx, "tcp", host)
 	} else {
 		if foundSep { //FIXME: ipv6 won't work well
 			host = host + ":" + port
@@ -223,15 +232,54 @@ func (p *ConnPool) openConnection(hostname string) (net.Conn, error) {
 			host = host + ":80"
 		}
 
+		log.Debugf("Dialing plain: %s", host)
 		return p.plainDialer.DialContext(ctx, "tcp", host)
 	}
 }
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if conn.GetErr() == nil && !conn.Canceled {
-		load, _ := p.Idle.Load(hostname) // can not fail in practice
-		load.(ConnChan) <- conn
+		idle := p.Idle[hostname] // can not fail in practice
+		idle <- conn
 	}
+}
+
+func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+	if obj, ok := p.tlsDialers[host]; ok {
+		return obj
+	}
+
+	tlsConfig := tls.Config{
+		ServerName:         hint,
+		CipherSuites:       []uint16{},
+		InsecureSkipVerify: p.TLSConf.InsecureSkipVerify,
+		MinVersion:         p.TLSConf.MinVersion,
+		MaxVersion:         p.TLSConf.MaxVersion,
+	}
+
+	for _, suite := range p.TLSConf.TLSCipherSuites {
+		for _, c := range tls.CipherSuites() {
+			if c.Name == suite {
+				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
+			}
+		}
+		for _, c := range tls.InsecureCipherSuites() {
+			if c.Name == suite {
+				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
+			}
+		}
+	}
+
+	dialer := &tls.Dialer{
+		NetDialer: p.plainDialer,
+		Config:    &tlsConfig,
+	}
+
+	p.tlsDialers[host] = dialer
+
+	return dialer
 }
 
 func NewResolver() *RRResolver {
