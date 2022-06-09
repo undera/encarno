@@ -69,11 +69,8 @@ X-Marker: value
 
 ## TODO
 
-- allow configuring TLS options
-- test it with `Connection: close` in requests
 - figure out the issue with steps on the response time graph
  
-- rename `Hostname` into `Address` in payload input file 
 - limit len of auto-label for long GET urls
 - Use "startMissed" in self health
 - binary output writer&reader, including strings externalization

@@ -16,7 +16,7 @@ func TestOne(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	type Item struct {
@@ -27,37 +27,37 @@ func TestOne(t *testing.T) {
 	items := []Item{
 		{
 			inp: core.PayloadItem{
-				Hostname: hostname,
-				Payload:  []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
+				Address: hostname,
+				Payload: []byte("GET /scans.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: hostname,
-				Payload:  []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
+				Address: hostname,
+				Payload: []byte("GET /pt.tgz HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "yandex.ru",
-				Payload:  []byte("GET / HTTP/1.1\r\n\r\n"),
+				Address: "yandex.ru",
+				Payload: []byte("GET / HTTP/1.1\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "https://yandex.ru",
-				Payload:  []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
+				Address: "https://yandex.ru",
+				Payload: []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "httpbin.org",
-				Payload:  []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
+				Address: "httpbin.org",
+				Payload: []byte("GET /anything HTTP/1.1\r\nHost:httpbin.org\r\n\r\n"),
 			},
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "httpbin.org",
+				Address:  "httpbin.org",
 				Payload:  []byte("POST /anything HTTP/1.1\r\nHost:httpbin.org\r\nX-Hdr: ${input}\r\n\r\n"), // "test ${input} while producing 123"
 				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
 			},
@@ -65,7 +65,7 @@ func TestOne(t *testing.T) {
 		},
 		{
 			inp: core.PayloadItem{
-				Hostname: "notexistent",
+				Address: "notexistent",
 			},
 		},
 	}
@@ -75,7 +75,7 @@ func TestOne(t *testing.T) {
 
 		t.Logf("Status: %d %v", res.Status, res.Error)
 
-		//<-nib.transport.Idle[item.inp.Hostname]
+		//<-nib.transport.Idle[item.inp.Address]
 	}
 }
 
@@ -83,7 +83,7 @@ func TestConnClose(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	type Item struct {
@@ -93,7 +93,7 @@ func TestConnClose(t *testing.T) {
 
 	item := Item{
 		inp: core.PayloadItem{
-			Hostname: hostname,
+			Address: hostname,
 			// Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 			Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"),
 		},
@@ -118,16 +118,58 @@ func TestConnClose(t *testing.T) {
 	}
 }
 
+func TestTLSIssues(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	res, err := http.Get("https://statics.otomoto.pl/optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js")
+	log.Debugf("%s, %v", res.Status, err)
+
+	nib := Nib{
+		ConnPool: NewConnectionPool(100, 5*time.Second, core.ProtoConf{
+			TLSConf: core.TLSConf{
+				TLSCipherSuites: []string{"TLS_AES_128_GCM_SHA256"},
+			},
+		}),
+	}
+
+	type Item struct {
+		inp core.PayloadItem
+		out string
+	}
+
+	item := Item{
+		inp: core.PayloadItem{
+			Address: "https://13.225.244.117",
+			Payload: []byte("GET /optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js HTTP/1.1\r\nHost: statics.otomoto.pl\r\nConnection: close\r\n\r\n"),
+		},
+	}
+
+	items := []Item{
+		item,
+	}
+
+	for _, item := range items {
+		res := nib.Punch(&item.inp)
+
+		t.Logf("Status: %d %v", res.Status, res.Error)
+		t.Logf("Response:\n%s", res.RespBytes)
+
+		if res.Error != nil {
+			t.Errorf("Should not fail: %s", res.Error)
+			t.FailNow()
+		}
+	}
+}
+
 func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
 	}
 
 	item := core.PayloadItem{
-		Hostname: hostname,
-		Payload:  []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
+		Address: hostname,
+		Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
 	}
 
 	start := time.Now()
@@ -148,7 +190,7 @@ func TestLoop(t *testing.T) {
 }
 
 func TestLoopNative(t *testing.T) {
-	return
+	return // was used to compare the performance
 	start := time.Now()
 	i := float64(0)
 	for ; i < 100000; i++ {

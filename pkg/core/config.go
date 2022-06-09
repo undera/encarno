@@ -11,8 +11,16 @@ type Configuration struct {
 	Protocol ProtoConf
 }
 
+type TLSConf struct {
+	InsecureSkipVerify bool
+	TLSCipherSuites    []string
+	MinVersion         uint16
+	MaxVersion         uint16
+}
+
 type ProtoConf struct {
 	Driver         string
 	MaxConnections int
 	Timeout        time.Duration
+	TLSConf        TLSConf
 }
