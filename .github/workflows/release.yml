@@ -23,7 +23,7 @@ jobs:
             name: ${{ github.event.repository.name }}
             compress: 'false'
             dest: 'dist'
-            ldflags: 'w'
+            ldflags: '-w'
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
