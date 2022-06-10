@@ -136,7 +136,8 @@ type ConnPool struct {
 	plainDialer    *net.Dialer
 	tlsDialers     map[string]*tls.Dialer
 	TLSConf        core.TLSConf
-	mx             *sync.Mutex
+	mxConn         *sync.Mutex
+	mxDialer       *sync.Mutex
 }
 
 func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
@@ -152,22 +153,24 @@ func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.Pro
 		Idle:           map[string]ConnChan{},
 		MaxConnections: maxConnections,
 		Timeout:        timeout,
-		mx:             new(sync.Mutex),
+		mxConn:         new(sync.Mutex),
+		mxDialer:       new(sync.Mutex),
 	}
 	return pool
 }
 
 func (p *ConnPool) Get(hostname string, hostHint string) (*BufferedConn, error) {
 	// lazy initialize per-host pool
-	p.mx.Lock()
+	p.mxConn.Lock()
 	var ch ConnChan
 	if c, ok := p.Idle[hostname]; ok {
 		ch = c
 	} else {
+		log.Infof("Creating new connection pool for %s", hostname)
 		ch = make(ConnChan, p.MaxConnections)
 		p.Idle[hostname] = ch
 	}
-	p.mx.Unlock()
+	p.mxConn.Unlock()
 
 	select {
 	case conn := <-ch:
@@ -238,19 +241,16 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 	}
 }
 
-func (p *ConnPool) Return(hostname string, conn *BufferedConn) (putChan time.Duration) {
+func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
 	if !conn.Canceled {
-		idle := p.Idle[hostname] // can not fail in practice
-		b2 := time.Now()
+		idle := p.Idle[hostname] // can never fail in practice
 		idle <- conn
-		putChan = time.Now().Sub(b2)
 	}
-	return
 }
 
 func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
-	p.mx.Lock()
-	defer p.mx.Unlock()
+	p.mxDialer.Lock()
+	defer p.mxDialer.Unlock()
 	if obj, ok := p.tlsDialers[host]; ok {
 		return obj
 	}

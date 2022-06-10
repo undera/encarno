@@ -64,14 +64,12 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
             self.waiting_warning_cnt = 0
 
         if self.widget:
-            label = [
-                "%r: " % self,
-                ("graph fail" if waiting > 0 else "stat-txt", "%d wait" % waiting),
-                ", ",
-                ("graph vc" if (sleeping == 0 and self.get_load().throughput) else "stat-txt", "%d sleep" % sleeping),
-                ", ",
-                "%d busy" % self.reader.health_reader.cnt_busy,
-            ]
+            label = ["%r: " % self, ("graph fail" if waiting > 0 else "stat-txt", "%d wait" % waiting), ]
+            label += [", ", "%d busy" % self.reader.health_reader.cnt_busy, ]
+            if self.get_load().throughput:
+                label += [
+                    ", ", ("graph vc" if sleeping == 0 else "stat-txt", "%d sleep" % sleeping),
+                ]
             self.widget.widgets[0].set_text(label)
 
         return False
@@ -164,7 +162,7 @@ class EncarnoFilesGenerator(object):
             "protocol": {
                 "driver": scenario.get('protocol', 'http'),
                 "timeout": "%ss" % timeout,
-                "maxConnections": load.concurrency,
+                "maxconnections": load.concurrency,
                 "tlsconf": scenario.get("tls-config", {})
             },
             "input": {
