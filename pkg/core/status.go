@@ -2,6 +2,7 @@ package core
 
 import (
 	log "github.com/sirupsen/logrus"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -11,6 +12,15 @@ type Status struct {
 	busy     int64
 	working  int64
 	waiting  int64
+	missed   int64
+	cnt      int64
+	mx       *sync.Mutex
+}
+
+func NewStatus() *Status {
+	return &Status{
+		mx: new(sync.Mutex),
+	}
 }
 
 func (o *Status) IncWaiting() {
@@ -78,11 +88,22 @@ func (o *Status) Start() {
 			busy := o.GetBusy()
 			waiting := o.GetWaiting()
 
-			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d", waiting, working, sleeping, busy)
+			o.mx.Lock()
+			cnt := o.cnt
+			missed := o.missed
+			o.mx.Unlock()
+
+			// start to worry if we fail to serve load properly
+			miss := time.Duration(missed / cnt).Round(100 * time.Millisecond)
+
+			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d, lag: %s", waiting, working, sleeping, busy, miss)
 		}
 	}()
 }
 
 func (o *Status) StartMissed(sub time.Duration) {
-	// TODO
+	o.mx.Lock()
+	o.missed += sub.Nanoseconds()
+	o.cnt++
+	o.mx.Unlock()
 }

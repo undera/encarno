@@ -56,6 +56,7 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
 
         waiting = self.reader.health_reader.cnt_waiting
         sleeping = self.reader.health_reader.cnt_sleeping
+        lag = self.reader.health_reader.lag
         if waiting > 0:
             self.waiting_warning_cnt += 1
             if self.waiting_warning_cnt >= 3:
@@ -69,6 +70,7 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
             if self.get_load().throughput:
                 label += [
                     ", ", ("graph vc" if sleeping == 0 else "stat-txt", "%d sleep" % sleeping),
+                    ", ", ("graph fail" if lag != "0s" else "stat-txt", "%s lag" % lag),
                 ]
             self.widget.widgets[0].set_text(label)
 
@@ -402,6 +404,7 @@ class HealthReader:
 
     def __init__(self, filename, parent_logger) -> None:
         super().__init__()
+        self.lag = ""
         self.cnt_waiting = 0
         self.cnt_working = 0
         self.cnt_sleeping = 0
@@ -429,7 +432,8 @@ class HealthReader:
                     self.cnt_waiting = int(parts[2][:-1])
                     self.cnt_working = int(parts[4][:-1])
                     self.cnt_sleeping = int(parts[6][:-1])
-                    self.cnt_busy = int(parts[8][:-2])
+                    self.cnt_busy = int(parts[8][:-1])
+                    self.lag = parts[10][:-2]
                 except KeyboardInterrupt:
                     raise
                 except BaseException:

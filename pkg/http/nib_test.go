@@ -45,8 +45,8 @@ func TestOne(t *testing.T) {
 		},
 		{
 			inp: core.PayloadItem{
-				Address: "https://yandex.ru",
-				Payload: []byte("GET / HTTP/1.1\r\nHost: yandex.ru\r\n\r\n"),
+				Address: "https://www.olx.pt",
+				Payload: []byte("GET / HTTP/1.1\r\nHost: www.olx.pt\r\n\r\n"),
 			},
 		},
 		{

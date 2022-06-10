@@ -93,7 +93,7 @@ func handleSignals() {
 }
 
 func Run(config core.Configuration) {
-	status := new(core.Status)
+	status := core.NewStatus()
 	status.Start()
 
 	output := core.NewMultiOutput(config.Output)

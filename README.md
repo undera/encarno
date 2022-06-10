@@ -69,9 +69,6 @@ X-Marker: value
 
 ## TODO
 
-- figure out the issue with steps on the response time graph
- 
-- Use "startMissed" in self health
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
 - http://[::1]:8070/ - should work fine
