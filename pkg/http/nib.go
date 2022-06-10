@@ -25,7 +25,6 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 	}
 
 	n.readResponse(item, conn, &outItem, connClose)
-	outItem.Elapsed = time.Now().Sub(outItem.StartTime)
 	return &outItem
 }
 
@@ -106,23 +105,24 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 		}
 	}
 
+	finish := time.Now()
+	result.ReadTime = finish.Sub(conn.FirstRead) // now it's final read time
+	result.Elapsed = finish.Sub(result.StartTime)
+
 	err = resp.Body.Close()
 	if err != nil {
 		log.Warningf("Failed to close response body")
 	}
-	result.ReadTime = time.Now().Sub(conn.FirstRead) // now it's final read time
 
 	result.RespBytesCount = conn.ReadLen
 	result.RespBytes = conn.ReadRecorded.Bytes()
 
 	// close or reuse
+	before := time.Now()
 	if resp.Close || connClose {
 		go conn.Close()
 	} else {
 		n.ConnPool.Return(item.Address, conn)
 	}
-}
-
-func (n *Nib) readerLoop() {
-
+	result.TempClose = time.Now().Sub(before)
 }

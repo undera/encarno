@@ -34,6 +34,7 @@ type OutputItem struct {
 	Concurrency int64
 
 	Elapsed       time.Duration
+	TempClose     time.Duration // FIXME: remove it
 	ConnectTime   time.Duration
 	SentTime      time.Duration
 	FirstByteTime time.Duration
