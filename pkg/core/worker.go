@@ -71,11 +71,12 @@ func (w *Worker) Iteration() bool {
 	if !w.stopped {
 		w.Status.IncBusy()
 		res := w.Nib.Punch(item)
-		res.StartTS = res.StartTime.Unix()
+		res.StartTS = res.StartTime.Unix() // TODO: use nanoseconds
+		res.Worker = w.Name
 		if res.Error != nil {
 			res.ErrorStr = res.Error.Error()
 		}
-		res.StartMissed = res.StartTime.Sub(expectedStart)
+		//res.StartMissed = res.StartTime.Sub(expectedStart)
 		res.ExtractValues(item.RegexOut, w.Values)
 		res.ReqBytes = item.Payload
 		if item.Label != "" { // allow Nib to generate own label

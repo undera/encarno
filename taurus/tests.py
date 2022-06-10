@@ -1,12 +1,16 @@
+import csv
 import logging
 import time
 
-from taurus import KPIReader
+from bzt.modules.aggregator import DataPoint
+
+from taurus.encarno import KPIReader
 
 logging.basicConfig(level=logging.INFO)
 
-file = "/media/BIG/bzt-artifacts/2022-06-04_09-48-44.020885/encarno.ldjson"
+file = "/tmp/downloads/encarno_results.ldjson"
 
 obj = KPIReader(file, logging.getLogger(''), "/dev/null")
 for item in obj.datapoints(True):
-    logging.info("%s %s", int(time.time()), item)
+    item.recalculate()
+    logging.info("%s %s", item[DataPoint.TIMESTAMP], item[DataPoint.CURRENT])

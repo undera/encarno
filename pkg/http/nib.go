@@ -30,9 +30,8 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 }
 
 func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, bool) {
-	before := time.Now()
 	hostHint, connClose := getHostAndConnHeaderValues(item.Payload)
-
+	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	connected := time.Now()
 	outItem.ConnectTime = connected.Sub(before)
@@ -87,10 +86,14 @@ func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
 func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem, connClose bool) {
 	begin := time.Now()
 	resp, err := http.ReadResponse(conn.BufReader, nil)
+	result.Status = resp.StatusCode
+	result.ReadTime = time.Now().Sub(begin) // in case there will be an error
 	if err != nil {
 		result.EndWithError(err)
 		return
 	}
+
+	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
 	if len(item.RegexOut) > 0 {
 		conn.ReadRecordLimit = 0 // FIXME: this affects reused connections
@@ -107,14 +110,12 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	if err != nil {
 		log.Warningf("Failed to close response body")
 	}
-	result.ReadTime = time.Now().Sub(begin)
+	result.ReadTime = time.Now().Sub(conn.FirstRead) // now it's final read time
 
 	result.RespBytesCount = conn.ReadLen
 	result.RespBytes = conn.ReadRecorded.Bytes()
 
-	result.Status = resp.StatusCode
-	result.FirstByteTime = conn.FirstRead.Sub(begin)
-
+	// close or reuse
 	if resp.Close || connClose {
 		go conn.Close()
 	} else {

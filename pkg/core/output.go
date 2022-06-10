@@ -25,23 +25,27 @@ type Output interface {
 }
 
 type OutputItem struct {
+	StartTime time.Time `json:"-"`
+	StartTS   int64     // for result readers, to avoid date parsing
+
+	Status      int
+	Error       error  `json:"-"`
+	ErrorStr    string // for JSON reader
+	Concurrency int64
+
+	Elapsed       time.Duration
+	ConnectTime   time.Duration
+	SentTime      time.Duration
+	FirstByteTime time.Duration
+	ReadTime      time.Duration
+
+	Worker string
+	Label  string
+
 	SentBytesCount int
 	RespBytesCount int
-	Label          string
 	ReqBytes       []byte `json:"-"`
 	RespBytes      []byte `json:"-"`
-	Error          error  `json:"-"`
-	ErrorStr       string // for JSON reader
-	Status         int
-	StartTime      time.Time `json:"-"`
-	StartTS        int64     // for result readers, to avoid date parsing
-	Concurrency    int64
-	ConnectTime    time.Duration
-	SentTime       time.Duration
-	FirstByteTime  time.Duration
-	ReadTime       time.Duration
-	Elapsed        time.Duration
-	StartMissed    time.Duration
 }
 
 func (i *OutputItem) EndWithError(err error) *OutputItem {
