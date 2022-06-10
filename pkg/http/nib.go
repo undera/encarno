@@ -116,11 +116,9 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	result.RespBytes = conn.ReadRecorded.Bytes()
 
 	// close or reuse
-	before := time.Now()
 	if resp.Close || connClose {
 		go conn.Close()
 	} else {
-		result.PutChan = n.ConnPool.Return(item.Address, conn)
+		n.ConnPool.Return(item.Address, conn)
 	}
-	result.TempClose = time.Now().Sub(before)
 }
