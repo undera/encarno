@@ -122,7 +122,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	if resp.Close || connClose {
 		go conn.Close()
 	} else {
-		n.ConnPool.Return(item.Address, conn)
+		result.GotErr, result.PutChan = n.ConnPool.Return(item.Address, conn)
 	}
 	result.TempClose = time.Now().Sub(before)
 }

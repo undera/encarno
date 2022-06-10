@@ -35,6 +35,8 @@ type OutputItem struct {
 
 	Elapsed       time.Duration
 	TempClose     time.Duration // FIXME: remove it
+	GotErr        time.Duration // FIXME: remove it
+	PutChan       time.Duration // FIXME: remove it
 	ConnectTime   time.Duration
 	SentTime      time.Duration
 	FirstByteTime time.Duration
