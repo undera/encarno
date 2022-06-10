@@ -2,7 +2,6 @@ package core
 
 import (
 	log "github.com/sirupsen/logrus"
-	"strconv"
 	"time"
 )
 
@@ -40,10 +39,9 @@ type BaseWorkload struct {
 
 func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	s.cnt++
-	name := "worker#" + strconv.Itoa(s.cnt)
-	log.Infof("Spawning worker: %s", name)
+	log.Infof("Spawning worker: #%d", s.cnt)
 	abort := make(chan struct{})
-	worker := NewBasicWorker(name, abort, s, scheduleChan)
+	worker := NewBasicWorker(s.cnt, abort, s, scheduleChan)
 	s.Workers = append(s.Workers, worker)
 	go worker.Run()
 }

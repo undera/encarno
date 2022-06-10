@@ -85,12 +85,12 @@ func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
 func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *core.OutputItem, connClose bool) {
 	begin := time.Now()
 	resp, err := http.ReadResponse(conn.BufReader, nil)
-	result.Status = resp.StatusCode
 	result.ReadTime = time.Now().Sub(begin) // in case there will be an error
 	if err != nil {
 		result.EndWithError(err)
 		return
 	}
+	result.Status = resp.StatusCode
 
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
@@ -99,10 +99,8 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	}
 
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		if err != nil {
-			result.EndWithError(err)
-			return
-		}
+		result.EndWithError(err) // TODO: unclosed connection leak?
+		return
 	}
 
 	finish := time.Now()
@@ -122,7 +120,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	if resp.Close || connClose {
 		go conn.Close()
 	} else {
-		result.GotErr, result.PutChan = n.ConnPool.Return(item.Address, conn)
+		result.PutChan = n.ConnPool.Return(item.Address, conn)
 	}
 	result.TempClose = time.Now().Sub(before)
 }

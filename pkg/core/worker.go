@@ -9,7 +9,7 @@ import (
 // track expected request time and factual, report own overloaded state, auto-stop if unable to conform
 
 type Worker struct {
-	Name           string
+	Index          int
 	Nib            Nib
 	StartTime      time.Time
 	Abort          <-chan struct{}
@@ -29,7 +29,7 @@ outer:
 		// TODO: only measure single iteration with time tracker, record its ratio into result
 		select {
 		case <-w.Abort:
-			log.Debugf("Aborting worker: %s", w.Name)
+			log.Debugf("Aborting worker: %s", w.Index)
 			break outer
 		default:
 			shouldStop := w.Iteration()
@@ -38,7 +38,7 @@ outer:
 			}
 		}
 	}
-	log.Infof("Worker finished: %s", w.Name)
+	log.Infof("Worker finished: %s", w.Index)
 	w.Finished = true
 	// TODO: somehow notify workers array/count
 }
@@ -61,7 +61,7 @@ func (w *Worker) Iteration() bool {
 	expectedStart := w.StartTime.Add(offset)
 	delay := expectedStart.Sub(time.Now())
 	if delay > 0 {
-		log.Debugf("[%s] Sleeping: %dns", w.Name, delay)
+		log.Debugf("[%s] Sleeping: %dns", w.Index, delay)
 		w.Status.IncSleeping()
 		time.Sleep(delay) // todo: make it cancelable
 		w.Status.DecSleeping()
@@ -72,7 +72,7 @@ func (w *Worker) Iteration() bool {
 		w.Status.IncBusy()
 		res := w.Nib.Punch(item)
 		res.StartTS = res.StartTime.Unix() // TODO: use nanoseconds
-		res.Worker = w.Name
+		res.Worker = w.Index
 		if res.Error != nil {
 			res.ErrorStr = res.Error.Error()
 		}
@@ -94,9 +94,9 @@ func (w *Worker) Stop() {
 	w.stopped = true
 }
 
-func NewBasicWorker(name string, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {
+func NewBasicWorker(index int, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {
 	b := &Worker{
-		Name:          name,
+		Index:         index,
 		Nib:           wl.NibMaker(),
 		Abort:         abort,
 		InputPayload:  wl.InputPayload(),

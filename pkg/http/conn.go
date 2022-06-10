@@ -84,6 +84,7 @@ func (r *BufferedConn) setErr(err error) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 	r.Err = err
+	r.Canceled = true
 }
 
 func (r *BufferedConn) GetErr() error {
@@ -237,16 +238,12 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 	}
 }
 
-func (p *ConnPool) Return(hostname string, conn *BufferedConn) (gotErr time.Duration, putChan time.Duration) {
-	b1 := time.Now()
-	err := conn.GetErr()
-	gotErr = time.Now().Sub(b1)
-	if err == nil && !conn.Canceled {
+func (p *ConnPool) Return(hostname string, conn *BufferedConn) (putChan time.Duration) {
+	if !conn.Canceled {
 		idle := p.Idle[hostname] // can not fail in practice
 		b2 := time.Now()
 		idle <- conn
 		putChan = time.Now().Sub(b2)
-
 	}
 	return
 }
