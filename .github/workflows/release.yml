@@ -19,7 +19,7 @@ jobs:
         uses: thatisuday/go-cross-build@v1.0.2
         with:
             platforms: 'linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64'
-            package: '...'
+            package: 'cmd/encarno'
             name: ${{ github.event.repository.name }}
             compress: 'false'
             dest: 'dist'
