@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"io"
 	"net"
 	"net/url"
@@ -263,16 +264,14 @@ func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
 		MaxVersion:         p.TLSConf.MaxVersion,
 	}
 
-	for _, suite := range p.TLSConf.TLSCipherSuites {
-		for _, c := range tls.CipherSuites() {
-			if c.Name == suite {
-				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
-			}
+	for _, c := range tls.CipherSuites() {
+		if slices.Contains(p.TLSConf.TLSCipherSuites, c.Name) {
+			tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
 		}
-		for _, c := range tls.InsecureCipherSuites() {
-			if c.Name == suite {
-				tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
-			}
+	}
+	for _, c := range tls.InsecureCipherSuites() {
+		if slices.Contains(p.TLSConf.TLSCipherSuites, c.Name) {
+			tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, c.ID)
 		}
 	}
 

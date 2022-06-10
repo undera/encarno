@@ -71,13 +71,12 @@ X-Marker: value
 
 - binary output writer&reader, including strings externalization
 - scripting elements in input, whole scripting flow
+- 
 - http://[::1]:8070/ - should work fine
-- option to inject into k8s
-  - inject all the files
-  - options to choose NS
-  - https://github.com/kubernetes-client/python
-  - Download artifacts back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
-- unit tests
+- respect `iterations` option from Taurus config, test it
+- 
+- unit tests and coverage 
+- 
 - auto-release process
 - documentation
 
@@ -85,4 +84,9 @@ X-Marker: value
 - limit len of auto-label for long GET urls
 - udp protocol nib
 - explicit option of shared input. To allow processing payload file only once.
-  - respect `iterations` option from Taurus config, test it
+- option to inject into k8s
+  - inject all the files
+  - options to choose NS
+  - https://github.com/kubernetes-client/python
+  - Download artifacts back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
+
