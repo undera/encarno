@@ -2,13 +2,12 @@ package scenario
 
 import (
 	"encarno/pkg/core"
-	log "github.com/sirupsen/logrus"
 	"testing"
 	"time"
 )
 
 func init() {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 }
 
 func TestOpenGenerator(t *testing.T) {

@@ -29,7 +29,7 @@ outer:
 		// TODO: only measure single iteration with time tracker, record its ratio into result
 		select {
 		case <-w.Abort:
-			log.Debugf("Aborting worker: %s", w.Index)
+			log.Debugf("Aborting worker: %d", w.Index)
 			break outer
 		default:
 			shouldStop := w.Iteration()
@@ -38,7 +38,7 @@ outer:
 			}
 		}
 	}
-	log.Infof("Worker finished: %s", w.Index)
+	log.Infof("Worker finished: %d", w.Index)
 	w.Finished = true
 	// TODO: somehow notify workers array/count
 }
@@ -61,7 +61,7 @@ func (w *Worker) Iteration() bool {
 	expectedStart := w.StartTime.Add(offset)
 	delay := expectedStart.Sub(time.Now())
 	if delay > 0 {
-		log.Debugf("[%s] Sleeping: %dns", w.Index, delay)
+		log.Debugf("[%d] Sleeping: %dns", w.Index, delay)
 		w.Status.IncSleeping()
 		time.Sleep(delay) // todo: make it cancelable
 		w.Status.DecSleeping()
@@ -76,7 +76,7 @@ func (w *Worker) Iteration() bool {
 		if res.Error != nil {
 			res.ErrorStr = res.Error.Error()
 		}
-		//res.StartMissed = res.StartTime.Sub(expectedStart)
+		w.Status.StartMissed(res.StartTime.Sub(expectedStart))
 		res.ExtractValues(item.RegexOut, w.Values)
 		res.ReqBytes = item.Payload
 		if item.Label != "" { // allow Nib to generate own label

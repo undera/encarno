@@ -13,7 +13,7 @@ import (
 var hostname = "localhost:8070"
 
 func TestOne(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
 		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
@@ -80,7 +80,7 @@ func TestOne(t *testing.T) {
 }
 
 func TestConnClose(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
 		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
@@ -119,7 +119,7 @@ func TestConnClose(t *testing.T) {
 }
 
 func TestTLSIssues(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 	res, err := http.Get("https://statics.otomoto.pl/optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js")
 	log.Debugf("%s, %v", res.Status, err)
 

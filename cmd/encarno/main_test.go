@@ -2,14 +2,13 @@ package main
 
 import (
 	"encarno/pkg/core"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestConfig(t *testing.T) {
-	cfg := "/media/BIG/bzt-artifacts/2022-06-09_15-04-45.058010/encarno_cfg.yaml"
+	cfg := "/media/BIG/bzt-artifacts/some/encarno_cfg.yaml"
 	if _, err := os.Stat(cfg); err == nil {
 		config := LoadConfig(cfg)
 		Run(config)
@@ -17,7 +16,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 
 	ichan := make(core.InputChannel)
 	go func() {

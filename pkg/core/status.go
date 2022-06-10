@@ -82,3 +82,7 @@ func (o *Status) Start() {
 		}
 	}()
 }
+
+func (o *Status) StartMissed(sub time.Duration) {
+	// TODO
+}
