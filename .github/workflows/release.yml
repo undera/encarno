@@ -28,6 +28,7 @@ jobs:
           race: false
           ldflags: -s -w
           buildmode: default
+          working_dir: cmd/encarno
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
