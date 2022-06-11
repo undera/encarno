@@ -30,14 +30,15 @@ jobs:
           ldflags: -s -w
           buildmode: default
           buildvcs: ""
+          tags: ""
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
           artifacts: > 
-            build/${{ github.event.repository.name }}-linux-amd64,
-            build/${{ github.event.repository.name }}-linux-arm64,
-            build/${{ github.event.repository.name }}-darwin-amd64,
-            build/${{ github.event.repository.name }}-darwin-arm64,
-            build/${{ github.event.repository.name }}-windows-amd64.exe
+            /build/${{ github.event.repository.name }}-linux-amd64,
+            /build/${{ github.event.repository.name }}-linux-arm64,
+            /build/${{ github.event.repository.name }}-darwin-amd64,
+            /build/${{ github.event.repository.name }}-darwin-arm64,
+            /build/${{ github.event.repository.name }}-windows-amd64.exe
           allowUpdates: 'true'
           token: ${{ secrets.GITHUB_TOKEN }}
