@@ -29,6 +29,7 @@ jobs:
           race: false
           ldflags: -s -w
           buildmode: default
+          buildvcs: ""
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
