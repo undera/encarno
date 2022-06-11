@@ -21,6 +21,7 @@ jobs:
           xgo_version: latest
           go_version: 1.18
           dest: build
+          pkg: "cmd/encarno"
           prefix: ${{ github.event.repository.name }}
           targets: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
           v: true
@@ -28,7 +29,6 @@ jobs:
           race: false
           ldflags: -s -w
           buildmode: default
-          working_dir: cmd/encarno
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
