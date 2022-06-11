@@ -16,13 +16,18 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v3.0.2
       - name: Generate build files
-        uses: thatisuday/go-cross-build@v1.0.2
-        env:
-          GO111MODULE: 'on'
+        uses: crazy-max/ghaction-xgo@v2
         with:
-            platforms: 'linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64'
-            package: 'cmd/encarno'
-            name: ${{ github.event.repository.name }}
+          xgo_version: latest
+          go_version: 1.18
+          dest: build
+          prefix: ${{ github.event.repository.name }}
+          targets: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
+          v: true
+          x: false
+          race: false
+          ldflags: -s -w
+          buildmode: default
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
