@@ -90,13 +90,15 @@ func (o *Status) Start() {
 
 			o.mx.Lock()
 			cnt := o.cnt
+			o.cnt = 0
 			missed := o.missed
+			o.missed = 0
 			o.mx.Unlock()
 
 			// start to worry if we fail to serve load properly
 			miss := time.Duration(0)
 			if cnt > 0 {
-				miss = time.Duration(missed / cnt).Round(100 * time.Millisecond)
+				miss = time.Duration(missed / cnt).Round(10 * time.Millisecond)
 			}
 
 			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d, lag: %s, reqs: %d", waiting, working, sleeping, busy, miss, cnt)
