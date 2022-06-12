@@ -433,7 +433,7 @@ class HealthReader:
                     self.cnt_working = int(parts[4][:-1])
                     self.cnt_sleeping = int(parts[6][:-1])
                     self.cnt_busy = int(parts[8][:-1])
-                    self.lag = parts[10][:-2]
+                    self.lag = parts[10][:-1]
                 except KeyboardInterrupt:
                     raise
                 except BaseException:
