@@ -3,32 +3,15 @@
 The name comes from portuguese _[encarno](https://en.wiktionary.org/wiki/encarno) (/əŋˈkar.nu/)_ and means
 roughly "[I impersonate](#history)".
 
-# The Concept
+## Key Features
 
-- replacement for phantom, high-throughput hit-based, for the price of flexible scripting
-- binary in, binary out, helper tools to translate into human-readable
-- changeable "tip of the spear" `nib` - dummy, http, https, others
-- Go plugins used for nib
-- included stepper for basic scenarios
-- included auto-USL finder driver?
-- pluggable scenario component?
-- what about scripting? each worker consumes file sequentially and dies after? with some meta-info inside
-- no need in pre-calculated stpd - native code would be good at calculating the schedule, though can be one of possible
-  scenarios
-- make pluggable into Taurus first
-- k8s injector helper tool? Would need integration with Taurus for reporting?
+- http and https protocol testing
+- flexible load profiles in ["open" and "closed" workload](https://www.google.com/search?q=open+closed+workload) modes
+- accurate load generating
+- precise result measurements of nanosecond resolution
+- efficient and low overhead (written in Go)
+- minimalistic scripting, via regex extracts and asserts (coming soon)
 
-* 10к rps
-* built-in stepper
-* post/put/get method
-* file-reader
-* multi-line ammunition
-* labels
-* open/closed pattern
-* http and net code report
-* https/http
-* ipv4/ipv6
-* answ logs
 
 ## Usage as Taurus Module
 Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
@@ -52,7 +35,7 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 ### Config Format
 
 ### Payload Input Format
-
+The format is like that because of binary payloads
 ```text
 {"PayloadLen": 57, "Address": "http://localhost:8070", "Label": "/"}
 GET / HTTP/1.1
@@ -69,6 +52,8 @@ X-Marker: value
 ```
 
 ### Results Output Format
+special code 999 for errors
+### Debug trace log
 ### Log file health meanings
 ## Comparison to Similar Tools
 
@@ -101,22 +86,23 @@ we have lost some speed because of that (we believe not drastically).
 
 ## Roadmap
 
-- binary output writer&reader, including strings externalization
+- binary output writer&reader, including strings externalization, helper tools to translate into human-readable
 - scripting elements in input, whole scripting flow, asserts
--
+- when workers decrease (input exhausted or panics), reflect that in counters
+- 
 - http://[::1]:8070/ - should work fine
 - respect `iterations` option from Taurus config, test it
--
+- 
 - unit tests and coverage
--
+- 
 - auto-release process, including pip
 - documentation
+- separate file for health status, with per-line flush?
 
 ### Parking lot
 
 - limit len of auto-label for long GET urls
 - udp protocol nib
-- explicit option of shared input. To allow processing payload file only once.
 - auto-USL workload
 - option to inject into k8s
     - inject all the files
@@ -124,4 +110,4 @@ we have lost some speed because of that (we believe not drastically).
     - https://github.com/kubernetes-client/python
     - Download artifacts
       back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
-
+- Go plugins used for nib
