@@ -99,7 +99,7 @@ func (o *Status) Start() {
 				miss = time.Duration(missed / cnt).Round(100 * time.Millisecond)
 			}
 
-			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d, lag: %s", waiting, working, sleeping, busy, miss)
+			log.Infof("Workers: waiting: %d, working: %d, sleeping: %d, busy: %d, lag: %s, reqs: %d", waiting, working, sleeping, busy, miss, cnt)
 		}
 	}()
 }
