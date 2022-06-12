@@ -55,7 +55,7 @@ func (s *BaseWorkload) Stop() {
 
 func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf, status *Status) *BaseWorkload {
 	var payloadGetter func() InputChannel
-	if inputConfig.EnableRegexes || wconf.Mode == WorkloadClosed {
+	if inputConfig.EnableRegexes {
 		payloadGetter = func() InputChannel {
 			inputChannel := NewInput(inputConfig)
 			return inputChannel
