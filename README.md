@@ -15,13 +15,23 @@ roughly "[I impersonate](#history)".
 
 ## Usage as Taurus Module
 
-The easiest way to get started is to install [the Python package](https://pypi.org/project/encarno/) using `pip` (TODO: auto-release it):
+The easiest way to get started is to install [the Python package](https://pypi.org/project/encarno/) using `pip`, which will install also Taurus if needed (TODO: auto-release it):
 
 ```shell
 pip install encarno
 ```
 
-After that, running any test with `executor: encarno` will install the appropriate version of the Encarno binary. See below for the config examples.
+After that, running any test with `executor: encarno` will automatically download the appropriate version of the Encarno binary. In case you need to point the tool to specific binary, use this config snippet:
+```yaml
+modules:
+  encarno: 
+    path: /my/custom/encarno
+```
+
+To run the test, use the usual Taurus command-line with config files. See below for the config examples:
+```shell
+bzt my-config-with-encarno.yml
+```
 
 [Docker image](https://hub.docker.com/r/undera/encarno) is also available for containerized environments: (TODO auto-push it)
 
@@ -29,11 +39,11 @@ After that, running any test with `executor: encarno` will install the appropria
 docker run -it -v `pwd`:/conf undera/encarno /conf/config.yml
 ```
 
-### Closed Workload
+### Closed Workload Mode
 
 Closed workload is the load testing mode when relatively small pool of workers hit the service _as fast as they can_. As service reaches the bottleneck, the response time grows and workers produce less and less hits per second. This kind of workload is typical for service-to-service communications inside cluster. 
 
-In typical tests, the number of workers gradually increases over time to reveal the _capacity limit_ of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
+In typical tests, the number of workers gradually increases over time to reveal the _capacity limit_ of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload-mode) tests. 
 
 The Taurus config file for closed workload using Encarno:
 
@@ -55,11 +65,11 @@ scenarios:
 
 Note that `hold-for` and `iterations` load profile options are also supported, if you need them. Scenario definition can be [as sophisticated as you need it](#scripting-capabilities).
 
-### Open Workload
+### Open Workload Mode
 
 Open workload reflects public service scenario, when the number of clients is so big that slowing responses do not lead to decrease in service requests. This is achieved in tests by using large pool of workers that hit service according to _requests schedule_. Usually, that schedule is growing linearly, to reveal the breaking point of the service. Or a steady rate is applied to measure _performance quality characteristics_ for the service, such as response time percentiles.
 
-The main value we configure for open workload tests is the `throughput`, which is the number of requests per second to perform. For the breaking point (aka _stress test_) scenarios we configure it above the [capacity limit](#closed-workload) (~factor x1.5), for quality measurement we aim below the limit (~factor 1/2 or 80%). Usually we also put some limit on possible worker count `concurrency`, due to RAM/CPU being finite for load generator machine.
+The main value we configure for open workload tests is the `throughput`, which is the number of requests per second to perform. For the breaking point (aka _stress test_) scenarios we configure it above the [capacity limit](#closed-workload-mode) (~factor x1.5), for quality measurement we aim below the limit (~factor 1/2 or 80%). Usually we also put some limit on possible worker count `concurrency`, due to RAM/CPU being finite for load generator machine.
 
 Stress test config example:
 
@@ -164,6 +174,28 @@ scenarios:
 ```
 
 ### TLS Configuration
+
+For the cases, when connecting to server needs special TLS settings like custom cipher suites or TLS versions, please use the following config snippet:
+
+```yaml
+modules:
+  encarno:
+    tls-config:
+      insecureskipverify: true  # allow self-signed and invalid certificates, default: false
+      minversion: 771  # min version of TLS, default is 1.2
+      maxversion: 772  # max version of TLS, default is 1.3
+      tlsciphersuites: # list of cipher suite names to use, optional
+        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_RSA_WITH_AES_128_CBC_SHA
+        - TLS_RSA_WITH_AES_256_GCM_SHA384
+```
+
+Possible values for TLS version:
+ - TLS 1.3 = `772`
+ - TLS 1.2 = `771`
+ - TLS 1.1 = `770`
+ - TLS 1.0 = `769`
 
 ### Debug Trace Log
 
