@@ -32,7 +32,7 @@ jobs:
           buildvcs: ""
           tags: ""
       - name: Checking artifacts
-        run: ls -la
+        run: ls -la build
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
