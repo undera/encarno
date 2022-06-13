@@ -199,6 +199,25 @@ Possible values for TLS version:
 
 ### Debug Trace Log
 
+If you want to see what exactly were sent to the server and what was the response, you may enable the detailed trace log. Encarno would write `encarno_trace.txt` file, containing all meta information, request and response payloads:
+
+```yaml
+modules:
+  encarno:
+    trace-level: 500  # defaults to 1000
+```
+
+The trace option logic is "log records which status code is greater or equal X". All network level errors have special code `999`. Be careful with trace level, it can produce large files quickly and run you out of disk space. It is recommended to only enable tracing for certain kind of errors. 
+
+Some level examples:
+
+- `999` or `600` - only the network level errors
+- `500` - all 5xx server errors plus network level errors
+- `400` - client-side, server-side, and network level
+- `0` - dump all the traffic
+- `1000` - don't write trace file
+
+
 ### Sidebar Widget
 
 ## Standalone Usage
