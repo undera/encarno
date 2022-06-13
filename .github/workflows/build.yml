@@ -1,4 +1,4 @@
-name: Go
+name: Automated checks
 
 on:
   push:
@@ -33,5 +33,9 @@ jobs:
       - name: Upload coverage report
         uses: codecov/codecov-action@v1.0.2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           flags: unittests
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag encarne:$(date +%s)

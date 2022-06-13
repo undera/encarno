@@ -77,6 +77,9 @@ jobs:
           replace: ${{ github.ref_name }}
           include: "taurus/setup.py"
 
+      - name: Install deps
+        run: pip install build twine
+
       - name: Build package
         run: cd taurus && python -m build && twine check dist/*
 
@@ -88,13 +91,27 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
   docker:
-    name: Generate cross-platform builds
+    name: Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v3.0.2
 
-      - name: Inject version
+      - name: Inject version 1
+        uses: jacobtomlinson/gha-find-replace@v2
+        with:
+          find: '"0.0"'
+          replace: ${{ github.ref_name }}
+          include: "taurus/encarno/__init__.py"
+
+      - name: Inject version 2
+        uses: jacobtomlinson/gha-find-replace@v2
+        with:
+          find: '"0.0"'
+          replace: ${{ github.ref_name }}
+          include: "taurus/setup.py"
+
+      - name: Inject version 3
         uses: jacobtomlinson/gha-find-replace@v2
         with:
           find: '0.0'
