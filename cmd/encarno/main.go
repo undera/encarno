@@ -129,9 +129,9 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output core.Output, status *core.Status) core.WorkerSpawner {
 	base := core.NewBaseWorkload(nibMaker, output, inputConfig, workersConf, status)
 	switch workersConf.Mode {
-	case "open":
+	case core.WorkloadOpen:
 		return scenario.NewOpenWorkload(workersConf, base)
-	case "closed":
+	case core.WorkloadClosed:
 		return scenario.NewClosedWorkload(inputConfig, base)
 	default:
 		panic(fmt.Sprintf("Unsupported workers mode: %s", workersConf.Mode))

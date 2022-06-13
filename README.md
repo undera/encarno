@@ -220,9 +220,17 @@ Some level examples:
 
 ### Sidebar Widget
 
+When Taurus displays [console dashboard](https://gettaurus.org/docs/ConsoleReporter/), Encarno provides additional information in its sidebar widget:
+- `X wait` - the number of workers that are waiting to get input payload/schedule, if above zero - your load generator is at capacity
+- `X busy` - the number of workers actively doing job, synonym to concurrency
+- `X sleep` - number of workers waiting for the right time to query (only for open workload), if zero - your load generator is likely at capacity
+- `X lag` - the average lag between scheduled time to request and actual time (only for open workload), if above zero - your load generator is likely at capacity 
+
+Please note that widget information may be ahead of aggregate statistics, due to Taurus reporting facility still crunching numbers.
+
 ## Standalone Usage
 
-Kinda meaningless without the wrapper
+Encarno tool is designed to be used as part of some wrapper (e.g. [Taurus](https://gettaurus.org/)), thus it does not contain much features for result processing and input configuration. If you still want to use the tool on the lower level, this section is for you.
 
 ### Building from Source
 
@@ -230,10 +238,41 @@ To build the binary: `go build -o bin/encarno cmd/encarno/main.go`
 
 ### Config Format
 
-mention dummy protocol
+Here's the full config snippet with some inline comments:
+```yaml
+input:
+    payloadfile: "" # path to payload input file, mandatory
+    iterationlimit: 0 # if above zero, limits number of times the payload file is looped over
+
+output:
+    ldjsonfile: "" # optional, path to results file in LDJSON format
+    reqrespfile: "" # optional, path to detailed trace file
+    reqrespfilelevel: 0 # trace level for the above option
+
+workers:
+    mode: "" # mandatory workload mode, values are 'open' or 'closed'
+    workloadschedule: # mandatory, the list of linear chunks of workload schedule
+        - levelstart: 0 # starting level for chunk
+          levelend: 10  # ending level for chunk
+          duration: 5s  # duration of chunk
+    startingworkers: 0  # optional, number of initial workers to spawn in open workload 
+    maxworkers: 0 # the limit of workers to spawn
+
+protocol:
+    driver: "" # mandatory, protocol type to use, defaults to 'http', can also be 'dummy' 
+    maxconnections: 0 # limit of connections per host in HTTP
+    timeout: 0s # operation timeout
+    tlsconf: # TLS custom settings
+        insecureskipverify: false
+        minversion: 0
+        maxversion: 0
+        tlsciphersuites: []
+```
 
 ### Payload Input Format
-The format is like that because of binary payloads
+
+The format is like that because of possible binary payloads. It starts with JSON line of metadata, ending with `\n`, then `PayloadLen` number of bytes, followed by any number of `\r` and/or `\n`.
+
 ```text
 {"PayloadLen": 57, "Address": "http://localhost:8070", "Label": "/"}
 GET / HTTP/1.1
@@ -250,9 +289,14 @@ X-Marker: value
 ```
 
 ### Results Output Format
+TODO
 special code 999 for errors
+
 ### Log file health meanings
+TODO
+
 ## Comparison to Similar Tools
+TODO
 
 Explain the difference from JMeter and others
 How less flexible it is for JMeter
@@ -293,7 +337,6 @@ we have lost some speed because of that (we believe not drastically).
 - unit tests and coverage
 - 
 - auto-release process, including pip
-- documentation
 - separate file for health status, with per-line flush?
 
 ### Parking lot
