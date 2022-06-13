@@ -1,5 +1,5 @@
 # workflow name
-name: Generate release-artifacts
+name: goreleaser
 
 # on events
 on:
@@ -9,38 +9,23 @@ on:
 
 # workflow tasks
 jobs:
-  generate:
-    name: Generate cross-platform builds
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v3.0.2
-      - name: Generate build files
-        uses: crazy-max/ghaction-xgo@v2
+      -
+        name: Checkout
+        uses: actions/checkout@v3
         with:
-          xgo_version: latest
-          go_version: 1.18
-          dest: build
-          pkg: "cmd/encarno"
-          prefix: ${{ github.event.repository.name }}
-          targets: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
-          v: true
-          x: false
-          race: false
-          ldflags: -s -w
-          buildmode: default
-          buildvcs: false
-          tags: ""
-      - name: Checking artifacts
-        run: ls -la build
-      - name: Release artifacts
-        uses: ncipollo/release-action@v1.10.0
+          fetch-depth: 0
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v3
         with:
-          artifacts: > 
-            build/${{ github.event.repository.name }}-darwin-10.16-amd64,
-            build/${{ github.event.repository.name }}-darwin-10.16-arm64,
-            build/${{ github.event.repository.name }}-linux-amd64,
-            build/${{ github.event.repository.name }}-linux-arm64,
-            build/${{ github.event.repository.name }}-windows-4.0-amd64.exe
-          allowUpdates: 'true'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
