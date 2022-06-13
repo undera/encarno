@@ -71,6 +71,11 @@ func NewInput(config InputConf) InputChannel {
 		for {
 			item, err := ReadPayloadRecord(file, buf)
 			if err == io.EOF {
+				cnt += 1
+				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
+					break
+				}
+
 				log.Debugf("Rewind payload file")
 				_, err = file.Seek(0, 0)
 				if err != nil {
@@ -82,11 +87,6 @@ func NewInput(config InputConf) InputChannel {
 			}
 
 			ch <- item
-			cnt += 1
-			if config.IterationLimit > 0 && cnt >= config.IterationLimit {
-				break
-			}
-
 		}
 		log.Infof("Input exhausted")
 		close(ch)

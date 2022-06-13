@@ -159,13 +159,13 @@ class EncarnoFilesGenerator(object):
         self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
-        trace_level = int(scenario.get("trace-level", "1000"))
+        trace_level = int(scenario.get("trace-level", self.settings.get("trace-level", "1000")))
         cfg = {
             "protocol": {
                 "driver": scenario.get('protocol', 'http'),
                 "timeout": "%ss" % timeout,
                 "maxconnections": load.concurrency,
-                "tlsconf": scenario.get("tls-config", {})
+                "tlsconf": scenario.get("tls-config", self.settings.get("tls-config", {}))
             },
             "input": {
                 "payloadfile": self.payload_file,
@@ -433,7 +433,7 @@ class HealthReader:
                     self.cnt_working = int(parts[4][:-1])
                     self.cnt_sleeping = int(parts[6][:-1])
                     self.cnt_busy = int(parts[8][:-1])
-                    self.lag = parts[10][:-2]
+                    self.lag = parts[10][:-1]
                 except KeyboardInterrupt:
                     raise
                 except BaseException:
