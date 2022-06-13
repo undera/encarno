@@ -23,6 +23,7 @@ func main() {
 	} else {
 		log.SetLevel(log.DebugLevel)
 	}
+	log.Infof("Encarno v0.0")
 
 	handleSignals()
 

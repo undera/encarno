@@ -15,7 +15,7 @@ roughly "[I impersonate](#history)".
 
 ## Usage as Taurus Module
 
-The easiest way to get started is to install [the Python package](https://pypi.org/project/encarno/) using `pip`, which will install also Taurus if needed (TODO: auto-release it):
+The easiest way to get started is to install [the Python package](https://pypi.org/project/encarno/) using `pip`, which will install also Taurus if needed:
 
 ```shell
 pip install encarno
@@ -33,7 +33,7 @@ To run the test, use the usual Taurus command-line with config files. See below 
 bzt my-config-with-encarno.yml
 ```
 
-[Docker image](https://hub.docker.com/r/undera/encarno) is also available for containerized environments: (TODO auto-push it)
+[Docker image](https://hub.docker.com/r/undera/encarno) is also available for containerized environments: 
 
 ```shell
 docker run -it -v `pwd`:/conf undera/encarno /conf/config.yml
@@ -271,7 +271,7 @@ protocol:
 
 ### Payload Input Format
 
-The format is like that because of possible binary payloads. It starts with JSON line of metadata, ending with `\n`, then `PayloadLen` number of bytes, followed by any number of `\r` and/or `\n`.
+The format is like that because of possible binary payloads. It starts with JSON line of metadata, ending with `\n`, then `PayloadLen` number of bytes, followed by any number of `\r`, `\n` or `\r\n`.
 
 ```text
 {"PayloadLen": 57, "Address": "http://localhost:8070", "Label": "/"}
@@ -304,8 +304,7 @@ How more flexible it is for Hay and alikes
 
 ## History
 
-It is written as a replacement for the old [phantom](https://github.com/yandex-load/phantom)
-+[yandex-tank](https://github.com/yandex/yandex-tank) combination.Those were too "phantom" (and too unmaintained), we're
+It is written as a replacement for the old [phantom](https://github.com/yandex-load/phantom)+[yandex-tank](https://github.com/yandex/yandex-tank) combination.Those were too "phantom" (and too unmaintained), we're
 trying to be "in flesh" analogue to it. The idea was to write a tool as precise as phantom, but using modern programming
 language (Go) and address wider spectrum of use-cases.
 
@@ -314,6 +313,9 @@ input file with schedule and payloads. Also, re-implementing HTTP protocol clien
 we have lost some speed because of that (we believe not drastically).
 
 ## Changelog
+
+### 0.2 -- 13 jun 2022
+* improve automated release process: pypi package, docker image
 
 ### 0.1 -- 13 jun 2022
 * add binary releases on GitHub
@@ -335,13 +337,13 @@ we have lost some speed because of that (we believe not drastically).
 - auto-release process, including pip
 - binary output writer&reader, including strings externalization, helper tools to translate into human-readable
 - scripting elements in input, whole scripting flow, asserts
-- 
+ 
 - http://[::1]:8070/ - should work fine
 - respect `iterations` option from Taurus config, test it
-- 
+
 - when workers decrease (input exhausted or panics), reflect that in counters
 - unit tests and coverage
-- 
+ 
 - separate file for health status, with per-line flush?
 
 ### Parking lot
