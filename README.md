@@ -5,7 +5,7 @@ roughly "[I impersonate](#history)".
 
 ## Key Features
 
-- http and https protocol testing
+- HTTP 1.1 protocol testing, TLS supported
 - flexible load profiles in ["open" and "closed" workload](https://www.google.com/search?q=open+closed+workload) modes
 - accurate load generating
 - precise result measurements of nanosecond resolution
@@ -16,9 +16,38 @@ roughly "[I impersonate](#history)".
 ## Usage as Taurus Module
 Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
 
+Docker image available
+
 ### Closed Workload
 
+Closed workload is the load testing mode when relatively small pool of workers hit the service _as fast as they can_. As service reaches the bottleneck, the response time grows and workers produce less and less hits per second. This kind of workload is typical for service-to-service communications inside cluster. 
+
+In typical tests, the number of workers gradually increased over time to reveal the capacity limit of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
+
+The Taurus config file for closed workload using Encarno:
+
+```yaml
+---
+execution:
+  - executor: encarno
+    scenario: simple
+    
+    concurrency: 50
+    ramp-up: 5m
+    # steps: 10  # breaks ramp-up into N flat steps
+
+scenarios:
+  simple:
+    requests: 
+      - http://service.net:8080/api/path
+```
+
+Note that `hold-for` and `iterations` load profile options are also supported, if you need them.
+
 ### Open Workload
+
+True stress test
+Usually we put some limit on worker count, due to RAM/CPU limits of load generator.
 
 ### Scripting Capabilities
 
