@@ -1,5 +1,7 @@
 import http
 import json
+import os.path
+import platform
 import traceback
 from json import JSONDecodeError
 from urllib.parse import urlencode, urlparse
@@ -11,7 +13,8 @@ from bzt.engine import ScenarioExecutor, HavingInstallableTools, Scenario
 from bzt.modules import ExecutorWidget
 from bzt.modules.aggregator import ResultsReader, ConsolidatingAggregator
 from bzt.requests_model import HTTPRequest
-from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, dehumanize_time
+from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, dehumanize_time, is_windows, is_mac, \
+    ProgressBarContext, ExceptionalDownloader
 from bzt.utils import get_full_path, CALL_PROBLEMS
 
 
@@ -114,13 +117,26 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
 
 
 class ToolBinary(RequiredTool):
+    DOWNLOAD_LINK = "https://github.com/undera/encarno/releases/download/{version}/encarno-{platform}-{arch}"
+    VERSION = "0.0"  # TODO: replace with automatic version
+    LOCAL_PATH = "~/.bzt/encarno-taurus/{version}/"
+
     def __init__(self, config=None, **kwargs):
         settings = config or {}
+        version = settings.get("version", self.VERSION)
+        self.tool_path = get_full_path(settings.get("path", self.LOCAL_PATH.format(version=version) + '/encarno'))
+        if is_windows():
+            platf = 'windows'
+        elif is_mac():
+            platf = 'darwin'
+        else:
+            platf = 'linux'
 
-        # don't extend system-wide default
-        tool_path = get_full_path(settings.get("path"), default="encarno")
+        arch = "arm64" if "arm" in platform.processor() else "amd64"  # 32-bit dudes go build it from source
 
-        super().__init__(tool_path=tool_path, installable=False, **kwargs)
+        download_link = settings.get("download-link", self.DOWNLOAD_LINK).format(version=version, platform=platf,
+                                                                                 arch=arch)
+        super().__init__(tool_path=self.tool_path, download_link=download_link, version=version, **kwargs)
 
     def check_if_installed(self):
         self.log.debug("Trying: %s", self.tool_path)
@@ -135,6 +151,33 @@ class ToolBinary(RequiredTool):
 
         self.log.debug("Tool check stdout: %s", out)
         return True
+
+    def install(self):
+        if self.dry_install:
+            self.log.info(f"Dry installation for {self.tool_name}")
+            return
+
+        if not self.installable:
+            msg = "%s isn't found, automatic installation isn't implemented" % self.tool_name
+            if self.mandatory:
+                raise ToolError(msg)
+            else:
+                self.log.warning(msg)
+                return
+
+        with ProgressBarContext() as pbar:
+            if not os.path.exists(os.path.dirname(self.tool_path)):
+                os.makedirs(os.path.dirname(self.tool_path))
+            downloader = ExceptionalDownloader(self.http_client)
+            self.log.info("Downloading %s", self.download_link)
+            downloader.get(self.download_link, self.tool_path, reporthook=pbar.download_callback)
+
+            os.chmod(get_full_path(self.tool_path), 0o755)
+
+            if self.check_if_installed():
+                return self.tool_path
+            else:
+                raise ToolError("Unable to run %s after installation!" % self.tool_name)
 
 
 class EncarnoFilesGenerator(object):
