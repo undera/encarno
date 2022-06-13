@@ -19,12 +19,11 @@ FROM python
 
 RUN pip install bzt # to cache the step
 
-COPY --from=builder /build/src/encarno /usr/bin/encarno
+COPY --from=builder /build/src/encarno /root/.bzt/encarno-taurus/0.0/encarno
 
 ADD taurus /tmp/taurus
 
-RUN pip install /tmp/taurus
-
-RUN bzt /tmp/taurus/dummy.yml # sanity test
+# install and sanity check
+RUN pip install /tmp/taurus && bzt /tmp/taurus/dummy.yml && rm -r /tmp/taurus
 
 ENTRYPOINT ["sh", "-c", "bzt \"$@\"", "ignored"]
