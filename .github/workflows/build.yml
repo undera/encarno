@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  build:
+  go:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -36,6 +36,15 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           flags: unittests
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag encarne:$(date +%s)
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Build the Docker image
         run: docker build . --file Dockerfile --tag encarne:$(date +%s)

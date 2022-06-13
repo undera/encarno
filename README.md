@@ -314,7 +314,7 @@ we have lost some speed because of that (we believe not drastically).
 
 ## Changelog
 
-### 0.2 -- 13 jun 2022
+### 0.2 and 0.3 -- 13 jun 2022
 * improve automated release process: pypi package, docker image
 
 ### 0.1 -- 13 jun 2022
@@ -323,7 +323,6 @@ we have lost some speed because of that (we believe not drastically).
 * auto-download binary (needs next release)
 
 ### 0.0 -- 10 jun 2022
-
 * Simple CLI with one config file
 * Open and closed workload support
 * HTTP and dummy protocol types
