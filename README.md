@@ -22,7 +22,7 @@ Docker image available
 
 Closed workload is the load testing mode when relatively small pool of workers hit the service _as fast as they can_. As service reaches the bottleneck, the response time grows and workers produce less and less hits per second. This kind of workload is typical for service-to-service communications inside cluster. 
 
-In typical tests, the number of workers gradually increased over time to reveal the capacity limit of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
+In typical tests, the number of workers gradually increases over time to reveal the capacity limit of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
 
 The Taurus config file for closed workload using Encarno:
 
@@ -42,12 +42,54 @@ scenarios:
       - http://service.net:8080/api/path
 ```
 
-Note that `hold-for` and `iterations` load profile options are also supported, if you need them.
+Note that `hold-for` and `iterations` load profile options are also supported, if you need them. Scenario definition can be [as sophisticated as you need it](#scripting-capabilities).
 
 ### Open Workload
 
-True stress test
-Usually we put some limit on worker count, due to RAM/CPU limits of load generator.
+Open workload reflects public service scenario, when the number of clients is so big, that slowing responses do not lead to decrease in service requests. This is achieved in tests by using large pool of workers that hit service according to _requests schedule_. Usually, that schedule is growing linearly, to reveal the breaking point of the service. Or a steady rate is applied to measure _performance quality characteristics_ for the service, such as response time percentiles.
+
+The main value we configure for open workload tests is the `throughput`, which is the number of requests per second to perform. For the breaking point (aka _stress test_) scenarios we configure it above the [capacity limit](#closed-workload) (~factor x1.5), for quality measurement we aim below the limit (~factor 1/2 or 80%). Usually we also put some limit on possible worker count `concurrency`, due to RAM/CPU being finite for load generator machine.
+
+Stress test config example:
+
+```yaml
+---
+execution:
+  - executor: encarno
+    scenario: simple
+    
+    concurrency: 5000  # it's now the limit, not desired level
+    
+    throughput: 25000  # hit/s beyond server's capacity
+    ramp-up: 5m
+    # steps: 10  # breaks ramp-up into N flat steps
+
+scenarios:
+  simple:
+    requests: 
+      - http://service.net:8080/api/path
+```
+
+Quality measurement config:
+
+```yaml
+---
+execution:
+  - executor: encarno
+    scenario: simple
+
+    concurrency: 5000  # it's now the limit, not desired level
+
+    throughput: 10000  # hit/s below breaking point
+    ramp-up: 5m
+    # steps: 10  # breaks ramp-up into N flat steps
+
+scenarios:
+  simple:
+    requests: 
+      - http://service.net:8080/api/path
+```
+
 
 ### Scripting Capabilities
 
