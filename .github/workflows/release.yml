@@ -1,5 +1,5 @@
 # workflow name
-name: goreleaser
+name: Generate release-artifacts
 
 # on events
 on:
@@ -9,26 +9,41 @@ on:
 
 # workflow tasks
 jobs:
-  goreleaser:
+  generate:
+    name: Generate cross-platform builds
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout the repository
+        uses: actions/checkout@v3.0.2
+      - name: Generate build files
+        uses: crazy-max/ghaction-xgo@v2
         with:
-          fetch-depth: 0
-      -
-        name: Set up Go
-        uses: actions/setup-go@v3
+          xgo_version: latest
+          go_version: 1.18
+          dest: build
+          pkg: "cmd/encarno"
+          prefix: ${{ github.event.repository.name }}
+          targets: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
+          v: true
+          x: false
+          race: false
+          ldflags: -s -w
+          buildmode: default
+          buildvcs: false
+          tags: ""
+      - name: Simplifiyng artifacts
+        run: |
+        mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
+        mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
+        mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
+      - name: Release artifacts
+        uses: ncipollo/release-action@v1.10.0
         with:
-          go-version: '>=1.17.0'
-      -
-        name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist
-          workdir: cmd/encarno
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: > 
+            build/${{ github.event.repository.name }}-darwin-amd64,
+            build/${{ github.event.repository.name }}-darwin-arm64,
+            build/${{ github.event.repository.name }}-linux-amd64,
+            build/${{ github.event.repository.name }}-linux-arm64,
+            build/${{ github.event.repository.name }}-windows-amd64.exe
+          allowUpdates: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}
