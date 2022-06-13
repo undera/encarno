@@ -10,13 +10,24 @@ roughly "[I impersonate](#history)".
 - accurate load generating
 - precise result measurements of nanosecond resolution
 - efficient and low overhead (written in Go)
-- minimalistic scripting, via regex extracts and asserts (coming soon)
+- minimalistic scripting, via regex extracts and asserts (TODO: implement it)
 
 
 ## Usage as Taurus Module
-Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
 
-Docker image available
+The easiest way to get started is to install [the Python package](https://pypi.org/project/encarno/) using `pip` (TODO: auto-release it):
+
+```shell
+pip install encarno
+```
+
+After that, running any test with `executor: encarno` will install the appropriate version of the Encarno binary. See below for the config examples.
+
+[Docker image](https://hub.docker.com/r/undera/encarno) is also available for containerized environments: (TODO auto-push it)
+
+```shell
+docker run -it -v `pwd`:/conf undera/encarno /conf/config.yml
+```
 
 ### Closed Workload
 
@@ -46,7 +57,7 @@ Note that `hold-for` and `iterations` load profile options are also supported, i
 
 ### Open Workload
 
-Open workload reflects public service scenario, when the number of clients is so big, that slowing responses do not lead to decrease in service requests. This is achieved in tests by using large pool of workers that hit service according to _requests schedule_. Usually, that schedule is growing linearly, to reveal the breaking point of the service. Or a steady rate is applied to measure _performance quality characteristics_ for the service, such as response time percentiles.
+Open workload reflects public service scenario, when the number of clients is so big that slowing responses do not lead to decrease in service requests. This is achieved in tests by using large pool of workers that hit service according to _requests schedule_. Usually, that schedule is growing linearly, to reveal the breaking point of the service. Or a steady rate is applied to measure _performance quality characteristics_ for the service, such as response time percentiles.
 
 The main value we configure for open workload tests is the `throughput`, which is the number of requests per second to perform. For the breaking point (aka _stress test_) scenarios we configure it above the [capacity limit](#closed-workload) (~factor x1.5), for quality measurement we aim below the limit (~factor 1/2 or 80%). Usually we also put some limit on possible worker count `concurrency`, due to RAM/CPU being finite for load generator machine.
 
@@ -182,3 +193,7 @@ we have lost some speed because of that (we believe not drastically).
     - Download artifacts
       back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
 - Go plugins used for nib
+
+
+Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
+Pypi release: `rm -rf dist ; python -m build && twine check dist/* && twine upload dist/*`
