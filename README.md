@@ -22,7 +22,7 @@ Docker image available
 
 Closed workload is the load testing mode when relatively small pool of workers hit the service _as fast as they can_. As service reaches the bottleneck, the response time grows and workers produce less and less hits per second. This kind of workload is typical for service-to-service communications inside cluster. 
 
-In typical tests, the number of workers gradually increases over time to reveal the capacity limit of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
+In typical tests, the number of workers gradually increases over time to reveal the _capacity limit_ of the service. The result of such test is a _scalability profile_ for the service, also offering the estimation of throughput limits for the [open workload](#open-workload) tests. 
 
 The Taurus config file for closed workload using Encarno:
 
@@ -81,8 +81,8 @@ execution:
     concurrency: 5000  # it's now the limit, not desired level
 
     throughput: 10000  # hit/s below breaking point
-    ramp-up: 5m
-    # steps: 10  # breaks ramp-up into N flat steps
+    ramp-up: 1m        # should be much shorter than hold-for
+    hold-for: 20m      # enough time to accumulate statistics
 
 scenarios:
   simple:
