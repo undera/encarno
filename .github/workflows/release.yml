@@ -31,6 +31,8 @@ jobs:
           buildmode: default
           buildvcs: ""
           tags: ""
+      - name: Checking artifacts
+        run: ls -la
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
