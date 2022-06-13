@@ -33,9 +33,9 @@ jobs:
           tags: ""
       - name: Simplifiyng artifacts
         run: |
-        mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
-        mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
-        mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
+          mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
+          mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
+          mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
