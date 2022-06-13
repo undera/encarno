@@ -5,7 +5,7 @@ name: goreleaser
 on:
   push:
     tags: 
-        - "*.*"
+        - "*"
 
 # workflow tasks
 jobs:
@@ -27,5 +27,6 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --rm-dist
+          workdir: cmd/encarno
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
