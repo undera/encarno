@@ -7,7 +7,7 @@ roughly "[I impersonate](#history)".
 
 - HTTP 1.1 protocol testing, TLS supported
 - flexible load profiles in ["open" and "closed" workload](https://www.google.com/search?q=open+closed+workload) modes
-- accurate load generating
+- accurate load generating up to tens of thousands hits/s
 - precise result measurements of nanosecond resolution
 - efficient and low overhead (written in Go)
 - minimalistic scripting, via regex extracts and asserts (TODO: implement it)
