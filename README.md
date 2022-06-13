@@ -315,6 +315,11 @@ we have lost some speed because of that (we believe not drastically).
 
 ## Changelog
 
+### 0.1 -- 13 jun 2022
+* add binary releases on GitHub
+* add documentation
+* auto-download binary (needs next release)
+
 ### 0.0 -- 10 jun 2022
 
 * Simple CLI with one config file
