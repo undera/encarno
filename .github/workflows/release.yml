@@ -1,0 +1,49 @@
+# workflow name
+name: Generate release-artifacts
+
+# on events
+on:
+  push:
+    tags: 
+        - "*"
+
+# workflow tasks
+jobs:
+  generate:
+    name: Generate cross-platform builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3.0.2
+      - name: Generate build files
+        uses: crazy-max/ghaction-xgo@v2.0.0
+        with:
+          xgo_version: latest
+          go_version: 1.18
+          dest: build
+          pkg: "cmd/encarno"
+          prefix: ${{ github.event.repository.name }}
+          targets: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
+          v: true
+          x: false
+          race: false
+          ldflags: -s -w
+          buildmode: default
+          buildvcs: false
+          tags: ""
+      - name: Simplifying artifacts # Step to reduce a platform' substring overhead e.g darwin-10.16-amd64, windows-4.0-amd64.exe
+        run: |
+          mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
+          mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
+          mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
+      - name: Release artifacts
+        uses: ncipollo/release-action@v1.10.0
+        with:
+          artifacts: > 
+            build/${{ github.event.repository.name }}-darwin-amd64,
+            build/${{ github.event.repository.name }}-darwin-arm64,
+            build/${{ github.event.repository.name }}-linux-amd64,
+            build/${{ github.event.repository.name }}-linux-arm64,
+            build/${{ github.event.repository.name }}-windows-amd64.exe
+          allowUpdates: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}
