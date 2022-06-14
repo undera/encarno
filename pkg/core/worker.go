@@ -69,25 +69,34 @@ func (w *Worker) Iteration() bool {
 	}
 
 	if !w.stopped {
-		w.Status.IncBusy()
-		res := w.Nib.Punch(item)
-		res.StartTS = uint64(res.StartTime.Unix()) // TODO: use nanoseconds
-		res.Worker = uint32(w.Index)
-		if res.Error != nil {
-			res.ErrorStr = res.Error.Error()
-		}
+		item.ResolveStrings()
+		res := w.DoBusy(item)
 		w.Status.StartMissed(res.StartTime.Sub(expectedStart))
-		res.ExtractValues(item.RegexOut, w.Values)
-		res.ReqBytes = item.Payload
-		if item.Label != "" { // allow Nib to generate own label
-			res.Label = item.Label
-		}
-		res.Concurrency = uint32(w.Status.GetBusy())
-		w.Output.Push(res)
-		w.Status.DecBusy()
 	}
 	w.Status.DecWorking()
 	return false
+}
+
+func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
+	w.Status.IncBusy()
+	res := w.Nib.Punch(item)
+	res.StartTS = uint64(res.StartTime.Unix()) // TODO: use nanoseconds
+	res.Worker = uint32(w.Index)
+	res.ExtractValues(item.RegexOut, w.Values)
+	res.ReqBytes = item.Payload
+
+	if item.Label != "" { // allow Nib to generate own label
+		res.Label = item.Label
+	}
+
+	if item.LabelIdx != 0 { // allow Nib to generate own label index
+		res.LabelIdx = item.LabelIdx
+	}
+
+	res.Concurrency = uint32(w.Status.GetBusy())
+	w.Output.Push(res)
+	w.Status.DecBusy()
+	return res
 }
 
 func (w *Worker) Stop() {
