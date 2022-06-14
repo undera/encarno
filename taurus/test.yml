@@ -5,30 +5,14 @@ execution:
     concurrency: 20
     # throughput: 1000
     #iterations: 1
-    ramp-up: 1m
+    ramp-up: 3m
     # steps: 60
     #hold-for: 20s
 
 scenarios:
   simple:
-    protocol: dummy
-    default-address: https://localhost:8070/
-    tls-config:
-      insecureskipverify: true
-      minversion: 771
-      maxversion: 771
-      tlsciphersuites:
-        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-        - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        - TLS_RSA_WITH_AES_128_CBC_SHA
-        - TLS_RSA_WITH_AES_128_CBC_SHA256
-        - TLS_RSA_WITH_AES_128_GCM_SHA256
-        - TLS_RSA_WITH_AES_256_CBC_SHA
-        - TLS_RSA_WITH_AES_256_GCM_SHA384
-    #headers:
-    #  X-Marker: value
+    protocol: http
+    default-address: http://localhost:8070/
 
     requests1: taurus/urls.txt
     requests:
@@ -39,7 +23,7 @@ scenarios:
       #- http://localhost:8000/bin/encarno
       # - http://192.168.1.254/favicon.ico # my router
 
-    #trace-level: 600
+    # trace-level: 600
 
 #reporting:
 #  - csvresults

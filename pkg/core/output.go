@@ -78,12 +78,12 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 		panic(err)
 	}
 
-	err = binary.Write(fd, endian, int16(i.Status))
+	err = binary.Write(fd, endian, i.Status)
 	if err != nil {
 		panic(err)
 	}
 
-	err = binary.Write(fd, endian, int16(i.ErrorStrIdx))
+	err = binary.Write(fd, endian, i.ErrorStrIdx)
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +118,7 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 		panic(err)
 	}
 
-	err = binary.Write(fd, endian, int32(i.Worker))
+	err = binary.Write(fd, endian, i.Worker)
 	if err != nil {
 		panic(err)
 	}

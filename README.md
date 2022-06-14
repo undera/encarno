@@ -367,4 +367,3 @@ we have lost some speed because of that (we believe not drastically).
 
 
 Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
-Pypi release: `rm -rf dist ; python -m build && twine check dist/* && twine upload dist/*`

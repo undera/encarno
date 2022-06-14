@@ -1,7 +1,9 @@
 import http
 import json
+import logging
 import os.path
 import platform
+import struct
 import traceback
 from json import JSONDecodeError
 from urllib.parse import urlencode, urlparse
@@ -482,12 +484,14 @@ class KPIReaderBinary(ResultsReader):
     """
     Class to read KPI from LDJSON file
     """
+    FORMAT = "<Q HH L 5d LH QQ"
+    CHUNK_LEN = struct.calcsize(FORMAT)
 
     def __init__(self, filename, parent_logger, health_filename):
         super().__init__()
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, file_opener=lambda x: open(x, 'rb'), parent_logger=self.log)
-        self.partial_buffer = ""
+        self.partial_buffer = bytes()
         self.health_reader = HealthReader(health_filename, parent_logger)
 
     def _read(self, last_pass=False):
@@ -498,49 +502,31 @@ class KPIReaderBinary(ResultsReader):
         """
         self.health_reader.read(last_pass)
 
-        data = self.file.get_bytes(size=1024 * 1024, last_pass=last_pass)
+        data = self.file.get_bytes(size=1024 * 1024, last_pass=last_pass, decode=False)
         if data is None:
             return  # file not ready yet
 
-        for line in data:
-            if not line.endswith("\n"):
-                self.partial_buffer += line
-                continue
+        data = self.partial_buffer + data
 
-            line = self.partial_buffer + line
-            self.partial_buffer = ""
+        while len(data) >= self.CHUNK_LEN:
+            item = struct.unpack_from(self.FORMAT, data)
+            data = data[self.CHUNK_LEN:]
 
-            try:
-                row = json.loads(line)
-            except JSONDecodeError:
-                self.log.warning("Failed to decode JSON line: %s", traceback.format_exc())
-                continue
+            tstmp, rcd, err_idx, concur, rtm, cnn, sent, ltc, recv, wrk, lbl_idx, sbytes, rbytes = item
 
-            label = row["Label"]
+            error = None
+            label = ""  # TODO
 
-            try:
-                rtm = ns2sec(row["Elapsed"])
-                ltc = ns2sec(row["FirstByteTime"])
-                cnn = ns2sec(row["ConnectTime"])
-                # NOTE: actually we have precise send and receive time here...
-            except BaseException:
-                raise ToolError("Reader: failed record: %s" % row)
+            if err_idx > 0:
+                error = "some"  # TODO
 
-            error = row["ErrorStr"] if row["ErrorStr"] else None
-            rcd = str(row["Status"])
+            if rcd >= 400 and not error:  # TODO: should this be under config flag?
+                error = http.HTTPStatus(rcd).phrase
 
-            if row["Status"] >= 400 and not error:  # TODO: should this be under config flag?
-                error = http.HTTPStatus(row["Status"]).phrase
+            byte_count = sbytes + rbytes
+            yield tstmp, label, concur, rtm, cnn, ltc, str(rcd), error, '', byte_count
 
-            tstmp = int(row["StartTS"])
-
-            if tstmp != self.last_ts:
-                self.log.debug("New TS: %s", tstmp)
-                self.last_ts = tstmp
-
-            byte_count = row["SentBytesCount"] + row["RespBytesCount"]
-            concur = row["Concurrency"]
-            yield tstmp, label, concur, rtm, cnn, ltc, rcd, error, '', byte_count
+        self.partial_buffer = data
 
     def _ramp_up_exclude(self):
         return False
