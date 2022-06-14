@@ -243,12 +243,14 @@ Here's the full config snippet with some inline comments:
 input:
     payloadfile: "" # path to payload input file, mandatory
     iterationlimit: 0 # if above zero, limits number of times the payload file is looped over
-
+    stringsfile: "" # TODO
 output:
     ldjsonfile: "" # optional, path to results file in LDJSON format
     reqrespfile: "" # optional, path to detailed trace file
     reqrespfilelevel: 0 # trace level for the above option
-
+    binaryfile: "" # TODO
+    stringsfile: "" # TODO
+    
 workers:
     mode: "" # mandatory workload mode, values are 'open' or 'closed'
     workloadschedule: # mandatory, the list of linear chunks of workload schedule
@@ -287,10 +289,13 @@ X-Marker: value
 
 
 ```
+# TODO: indexed strings variant
 
-### Results Output Format
+### Results Output Formats
 TODO
+binary, ldjson, reqresp
 special code 999 for errors
+
 
 ### Log file health meanings
 TODO
@@ -340,7 +345,7 @@ we have lost some speed because of that (we believe not drastically).
 - scripting elements in input, whole scripting flow, asserts
  
 - http://[::1]:8070/ - should work fine
-- respect `iterations` option from Taurus config, test it
+- respect `iterations` option from Taurus config, test it, handle "only iterations and no duration is specified"
 
 - when workers decrease (input exhausted or panics), reflect that in counters
 - unit tests and coverage

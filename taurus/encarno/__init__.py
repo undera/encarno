@@ -187,6 +187,8 @@ class EncarnoFilesGenerator(object):
         :type base_logger: logging.Logger
         """
         super().__init__()
+        self.output_strings = None
+        self.input_strings = None
         self.output_format = "bin"
         self.stats_file = None
         self.kpi_file = None
@@ -212,11 +214,12 @@ class EncarnoFilesGenerator(object):
             },
             "input": {
                 "payloadfile": self.payload_file,
+                "stringsfile": self.input_strings if self.input_strings else "",
                 "iterationlimit": load.iterations,
             },
             "output": {
                 "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",
-                "reqrespfilelevel": trace_level
+                "reqrespfilelevel": trace_level,
             },
             "workers": {
                 "mode": "open" if load.throughput else "closed",
@@ -229,6 +232,8 @@ class EncarnoFilesGenerator(object):
         self.kpi_file = self.engine.create_artifact("encarno_results", "." + self.output_format)
         if self.output_format == "bin":
             cfg['output']["binaryfile"] = self.kpi_file
+            self.output_strings = self.engine.create_artifact("encarno_results", ".ostr")
+            cfg['output']["stringsfile"] = self.output_strings
         elif self.output_format == "ldjson":
             cfg['output']["ldjsonfile"] = self.kpi_file
         else:
@@ -278,11 +283,20 @@ class EncarnoFilesGenerator(object):
         self.payload_file = self.executor.get_script_path()
 
         if not self.payload_file:  # generation from requests
-            self.payload_file = self.engine.create_artifact("encarno", '.enc')
+            self.payload_file = self.engine.create_artifact("encarno", '.inp')
+            if self.settings.get("index-input-strings", True):
+                self.input_strings = self.engine.create_artifact("encarno", '.istr')
             self.log.info("Generating payload file: %s", self.payload_file)
-            self._generate_payload_inner(scenario)  # raises if there is no requests
+            str_list = self._generate_payload_inner(scenario)  # raises if there is no requests
+
+            if self.input_strings:
+                with open(self.input_strings, 'w') as fp:
+                    fp.writelines(x + "\n" for x in str_list)
+        else:
+            self.input_strings = scenario.get("input-strings")
 
     def _generate_payload_inner(self, scenario):
+        str_list = []
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
             requests = self._text_file_reader(req_val, scenario)
@@ -299,11 +313,24 @@ class EncarnoFilesGenerator(object):
 
                 host, tcp_payload = self._build_request(request, scenario)
 
-                metadata = {
-                    "PayloadLen": len(tcp_payload.encode('utf-8')),
-                    "Address": host,
-                    "Label": request.label,
-                }
+                if self.input_strings:
+                    if host not in str_list:
+                        str_list.append(host)
+
+                    if request.label not in str_list:
+                        str_list.append(request.label)
+
+                    metadata = {
+                        "plen": len(tcp_payload.encode('utf-8')),
+                        "iaddr": str_list.index(host) + 1,
+                        "ilbl": str_list.index(request.label) + 1
+                    }
+                else:
+                    metadata = {
+                        "plen": len(tcp_payload.encode('utf-8')),
+                        "address": host,
+                        "label": request.label,
+                    }
 
                 fds.write(json.dumps(metadata))  # metadata
                 fds.write("\r\n")  # sep
@@ -319,6 +346,8 @@ class EncarnoFilesGenerator(object):
                 return self._generate_payload_inner(scenario)
 
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
+
+        return str_list
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)
