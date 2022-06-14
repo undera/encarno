@@ -2,14 +2,16 @@
 execution:
   - executor: encarno
     scenario: simple
-    concurrency: 10
-    throughput: 2000
-    ramp-up: 5m
+    concurrency: 20
+    # throughput: 1000
+    #iterations: 1
+    ramp-up: 1m
     # steps: 60
     #hold-for: 20s
 
 scenarios:
   simple:
+    protocol: dummy
     default-address: https://localhost:8070/
     tls-config:
       insecureskipverify: true
@@ -45,7 +47,7 @@ scenarios:
 services:
   - module: shellexec
     prepare:
-      - go build -a -tags netgo -ldflags '-w' -o bin/encarno cmd/encarno/main.go
+      - go build -o bin/encarno cmd/encarno/main.go
 
 modules:
   encarno:

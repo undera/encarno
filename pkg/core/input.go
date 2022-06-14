@@ -39,7 +39,7 @@ type PayloadItem struct {
 
 	RegexOut map[string]*ExtractRegex
 
-	strIndex *StrIndex
+	StrIndex *StrIndex
 }
 
 func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
@@ -53,7 +53,7 @@ func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
 func (i *PayloadItem) ResolveStrings() {
 	if i.Address == "" && i.AddressIdx > 0 {
 		// resolve address index into string
-		i.Address = i.strIndex.Get(i.AddressIdx)
+		i.Address = i.StrIndex.Get(i.AddressIdx)
 	}
 }
 
@@ -105,7 +105,7 @@ func NewInput(config InputConf) InputChannel {
 				panic(err)
 			}
 
-			item.strIndex = strIndex
+			item.StrIndex = strIndex
 
 			ch <- item
 		}
@@ -115,7 +115,7 @@ func NewInput(config InputConf) InputChannel {
 	return ch
 }
 
-func ReadPayloadRecord(file *os.File, buf []byte) (*PayloadItem, error) {
+func ReadPayloadRecord(file io.ReadSeeker, buf []byte) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {

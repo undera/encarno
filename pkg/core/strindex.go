@@ -22,7 +22,10 @@ func NewStringIndex(fname string) *StrIndex {
 		mapping:  map[string]uint16{"": 0}, // reverse index
 		mx:       new(sync.Mutex),
 	}
-	ret.Load()
+
+	if fname != "" {
+		ret.Load()
+	}
 	return &ret
 }
 
@@ -70,8 +73,16 @@ func (s *StrIndex) Idx(label string) uint16 {
 		idx := uint16(len(s.index) - 1)
 		s.mapping[label] = idx
 
+		s.appendFile(label)
+
+		return idx
+	}
+}
+
+func (s *StrIndex) appendFile(label string) {
+	if s.filename != "" {
 		if s.fd == nil { // lazy open file
-			f, err := os.OpenFile(s.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // need to close it?
+			f, err := os.OpenFile(s.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // TODO: need to close it?
 			if err != nil {
 				panic(err)
 			}
@@ -81,7 +92,5 @@ func (s *StrIndex) Idx(label string) uint16 {
 		if _, err := s.fd.WriteString(label + "\n"); err != nil {
 			panic(err)
 		}
-
-		return idx
 	}
 }
