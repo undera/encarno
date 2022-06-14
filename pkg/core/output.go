@@ -83,10 +83,6 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 		panic(err)
 	}
 
-	if i.ErrorStrIdx == 0 && i.Error != nil {
-		panic("TODO")
-	}
-
 	err = binary.Write(fd, endian, int16(i.ErrorStrIdx))
 	if err != nil {
 		panic(err)
@@ -125,10 +121,6 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 	err = binary.Write(fd, endian, int32(i.Worker))
 	if err != nil {
 		panic(err)
-	}
-
-	if i.LabelIdx == 0 && i.Label != "" {
-		panic("TODO")
 	}
 
 	err = binary.Write(fd, endian, i.LabelIdx)
@@ -172,7 +164,7 @@ func (m *Output) Close() {
 }
 
 func (m *Output) Start(OutputConf) {
-	go m.Background()
+	go m.background()
 }
 
 func (m *Output) Push(res *OutputItem) {
@@ -180,7 +172,7 @@ func (m *Output) Push(res *OutputItem) {
 	m.pipe <- res
 }
 
-func (m *Output) Background() {
+func (m *Output) background() {
 	for {
 		res := <-m.pipe
 		for _, out := range m.Outs {
@@ -200,7 +192,7 @@ func NewOutput(conf OutputConf) *Output {
 	}
 
 	if conf.LDJSONFile != "" {
-		log.Infof("Opening result file for writing: %s", conf.LDJSONFile)
+		log.Infof("Opening LDJSON file for writing: %s", conf.LDJSONFile)
 		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)
@@ -213,7 +205,7 @@ func NewOutput(conf OutputConf) *Output {
 	}
 
 	if conf.BinaryFile != "" {
-		log.Infof("Opening result file for writing: %s", conf.BinaryFile)
+		log.Infof("Opening binary file for writing: %s", conf.BinaryFile)
 		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)
@@ -226,7 +218,7 @@ func NewOutput(conf OutputConf) *Output {
 	}
 
 	if conf.ReqRespFile != "" {
-		log.Infof("Opening result file for writing: %s", conf.ReqRespFile)
+		log.Infof("Opening trace file for writing: %s", conf.ReqRespFile)
 		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)
@@ -324,6 +316,10 @@ func (o *BinaryOut) Push(item *OutputItem) {
 
 	if item.Error != nil && item.ErrorStrIdx == 0 {
 		item.ErrorStrIdx = item.strIndex.Idx(item.Error.Error())
+	}
+
+	if item.Label != "" && item.LabelIdx == 0 {
+		item.LabelIdx = item.strIndex.Idx(item.Label)
 	}
 
 	item.WriteBinary(o.fd)

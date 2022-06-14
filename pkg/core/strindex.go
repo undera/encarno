@@ -3,6 +3,7 @@ package core
 import (
 	"bufio"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"sync"
 )
@@ -30,6 +31,7 @@ func NewStringIndex(fname string) *StrIndex {
 }
 
 func (s *StrIndex) Load() {
+	log.Infof("Loading string index from: %s", s.filename)
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	file, err := os.Open(s.filename)
@@ -82,6 +84,7 @@ func (s *StrIndex) Idx(label string) uint16 {
 func (s *StrIndex) appendFile(label string) {
 	if s.filename != "" {
 		if s.fd == nil { // lazy open file
+			log.Infof("Opening string index to append: %s", s.filename)
 			f, err := os.OpenFile(s.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // TODO: need to close it?
 			if err != nil {
 				panic(err)
