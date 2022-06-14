@@ -187,6 +187,7 @@ class EncarnoFilesGenerator(object):
         :type base_logger: logging.Logger
         """
         super().__init__()
+        self.output_format = "bin"
         self.stats_file = None
         self.kpi_file = None
         self.log = base_logger.getChild(self.__class__.__name__)
@@ -198,7 +199,6 @@ class EncarnoFilesGenerator(object):
         self.payload_file = None
 
     def generate_config(self, scenario, load):
-        self.kpi_file = self.engine.create_artifact("encarno_results", ".ldjson")
         self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
@@ -215,7 +215,6 @@ class EncarnoFilesGenerator(object):
                 "iterationlimit": load.iterations,
             },
             "output": {
-                "ldjsonfile": self.kpi_file,
                 "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",
                 "reqrespfilelevel": trace_level
             },
@@ -225,6 +224,15 @@ class EncarnoFilesGenerator(object):
                 "maxworkers": load.concurrency,
             }
         }
+
+        self.output_format = self.settings.get("output-format", self.output_format)
+        self.kpi_file = self.engine.create_artifact("encarno_results", "." + self.output_format)
+        if self.output_format == "bin":
+            cfg['output']["binaryfile"] = self.kpi_file
+        elif self.output_format == "ldjson":
+            cfg['output']["ldjsonfile"] = self.kpi_file
+        else:
+            raise TaurusConfigError("Unsupported output-format: %s" % self.output_format)
 
         self.config_file = self.engine.create_artifact("encarno_cfg", ".yaml")
         with open(self.config_file, "w") as fp:
@@ -259,7 +267,12 @@ class EncarnoFilesGenerator(object):
         return res
 
     def get_results_reader(self):
-        return KPIReader(self.kpi_file, self.log, self.executor.stderr.name)
+        if self.output_format == "bin":
+            return KPIReaderBinary(self.kpi_file, self.log, self.executor.stderr.name)
+        elif self.output_format == "ldjson":
+            return KPIReaderLDJSON(self.kpi_file, self.log, self.executor.stderr.name)
+        else:
+            raise TaurusConfigError("Unsupported output-format: %s" % self.output_format)
 
     def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
@@ -374,9 +387,9 @@ def ns2sec(val):
     return int(val) / 1000000000.0
 
 
-class KPIReader(ResultsReader):
+class KPIReaderLDJSON(ResultsReader):
     """
-    Class to read KPI
+    Class to read KPI from LDJSON file
     """
 
     def __init__(self, filename, parent_logger, health_filename):
@@ -384,7 +397,6 @@ class KPIReader(ResultsReader):
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, parent_logger=self.log)
         self.partial_buffer = ""
-        self.last_ts = None
         self.health_reader = HealthReader(health_filename, parent_logger)
 
     def _read(self, last_pass=False):
@@ -398,6 +410,70 @@ class KPIReader(ResultsReader):
         lines = self.file.get_lines(size=1024 * 1024, last_pass=last_pass)
 
         for line in lines:
+            if not line.endswith("\n"):
+                self.partial_buffer += line
+                continue
+
+            line = self.partial_buffer + line
+            self.partial_buffer = ""
+
+            try:
+                row = json.loads(line)
+            except JSONDecodeError:
+                self.log.warning("Failed to decode JSON line: %s", traceback.format_exc())
+                continue
+
+            label = row["Label"]
+
+            try:
+                rtm = ns2sec(row["Elapsed"])
+                ltc = ns2sec(row["FirstByteTime"])
+                cnn = ns2sec(row["ConnectTime"])
+                # NOTE: actually we have precise send and receive time here...
+            except BaseException:
+                raise ToolError("Reader: failed record: %s" % row)
+
+            error = row["ErrorStr"] if row["ErrorStr"] else None
+            rcd = str(row["Status"])
+
+            if row["Status"] >= 400 and not error:  # TODO: should this be under config flag?
+                error = http.HTTPStatus(row["Status"]).phrase
+
+            tstmp = int(row["StartTS"])
+
+            byte_count = row["SentBytesCount"] + row["RespBytesCount"]
+            concur = row["Concurrency"]
+            yield tstmp, label, concur, rtm, cnn, ltc, rcd, error, '', byte_count
+
+    def _ramp_up_exclude(self):
+        return False
+
+
+class KPIReaderBinary(ResultsReader):
+    """
+    Class to read KPI from LDJSON file
+    """
+
+    def __init__(self, filename, parent_logger, health_filename):
+        super().__init__()
+        self.log = parent_logger.getChild(self.__class__.__name__)
+        self.file = FileReader(filename=filename, file_opener=lambda x: open(x, 'rb'), parent_logger=self.log)
+        self.partial_buffer = ""
+        self.health_reader = HealthReader(health_filename, parent_logger)
+
+    def _read(self, last_pass=False):
+        """
+        Generator method that returns next portion of data
+
+        :type last_pass: bool
+        """
+        self.health_reader.read(last_pass)
+
+        data = self.file.get_bytes(size=1024 * 1024, last_pass=last_pass)
+        if data is None:
+            return  # file not ready yet
+
+        for line in data:
             if not line.endswith("\n"):
                 self.partial_buffer += line
                 continue

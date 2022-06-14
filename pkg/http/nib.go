@@ -46,7 +46,7 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 
 	log.Debugf("Writing %d bytes into connection", len(item.Payload))
 	write, err := conn.Write(item.Payload)
-	outItem.SentBytesCount = write
+	outItem.SentBytesCount = uint64(write)
 	outItem.SentTime = time.Now().Sub(connected)
 	if err != nil {
 		outItem.EndWithError(err)
@@ -90,7 +90,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 		result.EndWithError(err)
 		return
 	}
-	result.Status = resp.StatusCode
+	result.Status = uint16(resp.StatusCode)
 
 	result.FirstByteTime = conn.FirstRead.Sub(begin)
 
@@ -112,7 +112,7 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 		log.Warningf("Failed to close response body")
 	}
 
-	result.RespBytesCount = conn.ReadLen
+	result.RespBytesCount = uint64(conn.ReadLen)
 	result.RespBytes = conn.ReadRecorded.Bytes()
 
 	// close or reuse

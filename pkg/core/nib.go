@@ -29,7 +29,7 @@ type DummyNib struct {
 func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 	o := &OutputItem{
 		StartTime: time.Now(),
-		Status:    rand.Intn(5)*100 + 100,
+		Status:    uint16(rand.Intn(5)*100 + 100),
 		Label:     "label#" + strconv.Itoa(rand.Intn(3)),
 	}
 

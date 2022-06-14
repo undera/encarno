@@ -2,8 +2,10 @@ package core
 
 import (
 	"bufio"
+	"encoding/binary"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"math/rand"
 	"os"
 	"time"
@@ -12,10 +14,10 @@ import (
 type OutputConf struct {
 	LDJSONFile       string
 	ReqRespFile      string
-	ReqRespFileLevel int
+	ReqRespFileLevel uint16
+	BinaryFile       string
 
 	// TODO CSVFile string
-	// TODO BinaryFile string
 }
 
 type Output interface {
@@ -24,14 +26,14 @@ type Output interface {
 	Close()
 }
 
-type OutputItem struct {
+type OutputItem struct { // all fields should have fixed types
 	StartTime time.Time `json:"-"`
-	StartTS   int64     // for result readers, to avoid date parsing
+	StartTS   uint64    // for result readers, to avoid date parsing
 
-	Status      int
+	Status      uint16
 	Error       error  `json:"-"`
 	ErrorStr    string // for JSON reader
-	Concurrency int64
+	Concurrency uint32
 
 	Elapsed       time.Duration
 	ConnectTime   time.Duration
@@ -39,13 +41,15 @@ type OutputItem struct {
 	FirstByteTime time.Duration
 	ReadTime      time.Duration
 
-	Worker int
+	Worker uint32
 	Label  string
 
-	SentBytesCount int
-	RespBytesCount int
+	SentBytesCount uint64
+	RespBytesCount uint64
 	ReqBytes       []byte `json:"-"`
 	RespBytes      []byte `json:"-"`
+	ErrorStrIdx    uint16
+	LabelIdx       uint16
 }
 
 func (i *OutputItem) EndWithError(err error) *OutputItem {
@@ -65,6 +69,74 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 		} else {
 			values[name] = all[rand.Intn(len(all))][outSpec.GroupNo]
 		}
+	}
+}
+
+func (i *OutputItem) WriteBinary(fd io.Writer) {
+	endian := binary.LittleEndian
+	err := binary.Write(fd, endian, i.StartTS) // TODO: nano?
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, int16(i.Status))
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, int16(i.ErrorStrIdx))
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.Concurrency)
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.Elapsed.Seconds())
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.ConnectTime.Seconds())
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.SentTime.Seconds())
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.FirstByteTime.Seconds())
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.ReadTime.Seconds())
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, int32(i.Worker))
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.LabelIdx)
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.SentBytesCount)
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(fd, endian, i.RespBytesCount)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -121,6 +193,18 @@ func NewMultiOutput(conf OutputConf) Output {
 		})
 	}
 
+	if conf.BinaryFile != "" {
+		log.Infof("Opening result file for writing: %s", conf.BinaryFile)
+		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		out.Outs = append(out.Outs, &BinaryOut{
+			fd: file,
+		})
+	}
+
 	if conf.ReqRespFile != "" {
 		log.Infof("Opening result file for writing: %s", conf.ReqRespFile)
 		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY, 0644)
@@ -170,7 +254,7 @@ func (L *LDJSONOut) Close() {
 type ReqRespOut struct {
 	writer *bufio.Writer
 	fd     *os.File
-	Level  int // 0 would write all, 400 - all above 400, 600 - all non-http
+	Level  uint16 // 0 would write all, 400 - all above 400, 600 - all non-http
 }
 
 func (d ReqRespOut) Push(item *OutputItem) {
@@ -198,4 +282,16 @@ func (d ReqRespOut) Push(item *OutputItem) {
 func (d ReqRespOut) Close() {
 	_ = d.writer.Flush()
 	_ = d.fd.Close()
+}
+
+type BinaryOut struct {
+	fd *os.File
+}
+
+func (o *BinaryOut) Close() {
+	_ = o.fd.Close()
+}
+
+func (o *BinaryOut) Push(item *OutputItem) {
+	item.WriteBinary(o.fd)
 }

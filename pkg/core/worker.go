@@ -71,8 +71,8 @@ func (w *Worker) Iteration() bool {
 	if !w.stopped {
 		w.Status.IncBusy()
 		res := w.Nib.Punch(item)
-		res.StartTS = res.StartTime.Unix() // TODO: use nanoseconds
-		res.Worker = w.Index
+		res.StartTS = uint64(res.StartTime.Unix()) // TODO: use nanoseconds
+		res.Worker = uint32(w.Index)
 		if res.Error != nil {
 			res.ErrorStr = res.Error.Error()
 		}
@@ -82,7 +82,7 @@ func (w *Worker) Iteration() bool {
 		if item.Label != "" { // allow Nib to generate own label
 			res.Label = item.Label
 		}
-		res.Concurrency = w.Status.GetBusy()
+		res.Concurrency = uint32(w.Status.GetBusy())
 		w.Output.Push(res)
 		w.Status.DecBusy()
 	}

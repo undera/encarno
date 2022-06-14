@@ -314,6 +314,10 @@ we have lost some speed because of that (we believe not drastically).
 
 ## Changelog
 
+### 0.4 -- upcoming
+- binary output writer&reader, including strings externalization, helper tools to translate into human-readable
+
+
 ### 0.2 and 0.3 -- 13 jun 2022
 * improve automated release process: pypi package, docker image
 
@@ -333,8 +337,6 @@ we have lost some speed because of that (we believe not drastically).
 
 ## Roadmap
 
-- auto-release process, including pip
-- binary output writer&reader, including strings externalization, helper tools to translate into human-readable
 - scripting elements in input, whole scripting flow, asserts
  
 - http://[::1]:8070/ - should work fine
