@@ -28,11 +28,18 @@ type InputChannel chan *PayloadItem
 type ScheduleChannel chan time.Duration
 
 type PayloadItem struct {
-	Label      string
-	Address    string
+	LabelIdx uint16 `json:"ilbl"`
+	Label    string `json:"label"`
+
+	AddressIdx uint16 `json:"iaddr"`
+	Address    string `json:"address"`
+
+	PayloadLen int `json:"plen"`
 	Payload    []byte
-	PayloadLen int
-	RegexOut   map[string]*ExtractRegex
+
+	RegexOut map[string]*ExtractRegex
+
+	strIndex *StrIndex
 }
 
 func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
@@ -40,6 +47,13 @@ func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
 	for name, val := range values {
 		re := regexp.MustCompile("\\$\\{" + name + "}")
 		i.Payload = re.ReplaceAll(i.Payload, val)
+	}
+}
+
+func (i *PayloadItem) ResolveStrings() {
+	if i.Address == "" && i.AddressIdx > 0 {
+		// resolve address index into string
+		i.Address = i.strIndex.Get(i.AddressIdx)
 	}
 }
 
@@ -64,6 +78,11 @@ func NewInput(config InputConf) InputChannel {
 		panic(err)
 	}
 
+	var strIndex *StrIndex
+	if config.StringsFile != "" {
+		strIndex = NewStringIndex(config.StringsFile)
+	}
+
 	ch := make(InputChannel)
 	go func() {
 		cnt := 0
@@ -85,6 +104,8 @@ func NewInput(config InputConf) InputChannel {
 			} else if err != nil {
 				panic(err)
 			}
+
+			item.strIndex = strIndex
 
 			ch <- item
 		}
