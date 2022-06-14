@@ -12,6 +12,7 @@ type StrIndex struct {
 	index    []string
 	mapping  map[string]uint16
 	mx       *sync.Mutex
+	fd       *os.File
 }
 
 func NewStringIndex(fname string) *StrIndex {
@@ -65,8 +66,22 @@ func (s *StrIndex) Idx(label string) uint16 {
 		if idx, ok := s.mapping[label]; ok { // repeat the attempt under mutex
 			return idx
 		}
+		s.index = append(s.index, label)
 		idx := uint16(len(s.index) - 1)
 		s.mapping[label] = idx
+
+		if s.fd == nil { // lazy open file
+			f, err := os.OpenFile(s.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // need to close it?
+			if err != nil {
+				panic(err)
+			}
+			s.fd = f
+		}
+
+		if _, err := s.fd.WriteString(label + "\n"); err != nil {
+			panic(err)
+		}
+
 		return idx
 	}
 }
