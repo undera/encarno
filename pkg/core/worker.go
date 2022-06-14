@@ -47,17 +47,15 @@ outer:
 func (w *Worker) Iteration() bool {
 	w.Status.IncWaiting()
 	offset := <-w.InputSchedule
-	w.Status.DecWaiting()
-
-	w.Status.IncWorking()
-	w.IterationCount += 1
-
 	item := <-w.InputPayload
 	if item == nil {
 		return true
 	}
-
 	item.ReplaceValues(w.Values)
+	w.Status.DecWaiting()
+
+	w.Status.IncWorking()
+	w.IterationCount += 1
 
 	expectedStart := w.StartTime.Add(offset)
 	delay := expectedStart.Sub(time.Now())

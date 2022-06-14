@@ -33,6 +33,8 @@ func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 		Label:     "label#" + strconv.Itoa(rand.Intn(3)),
 	}
 
+	o.LabelIdx = item.strIndex.Idx(o.Label)
+
 	duration := time.Duration(rand.Intn(1000)) * time.Microsecond
 	time.Sleep(duration)
 
