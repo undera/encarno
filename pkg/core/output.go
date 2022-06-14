@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -16,14 +17,9 @@ type OutputConf struct {
 	ReqRespFile      string
 	ReqRespFileLevel uint16
 	BinaryFile       string
+	StringsFile      string
 
 	// TODO CSVFile string
-}
-
-type Output interface {
-	Start(output OutputConf)
-	Push(res *OutputItem)
-	Close()
 }
 
 type OutputItem struct { // all fields should have fixed types
@@ -33,6 +29,8 @@ type OutputItem struct { // all fields should have fixed types
 	Status      uint16
 	Error       error  `json:"-"`
 	ErrorStr    string // for JSON reader
+	ErrorStrIdx uint16 `json:"-"`
+
 	Concurrency uint32
 
 	Elapsed       time.Duration
@@ -41,15 +39,16 @@ type OutputItem struct { // all fields should have fixed types
 	FirstByteTime time.Duration
 	ReadTime      time.Duration
 
-	Worker uint32
-	Label  string
+	Worker   uint32
+	Label    string
+	LabelIdx uint16 `json:"-"`
 
 	SentBytesCount uint64
 	RespBytesCount uint64
 	ReqBytes       []byte `json:"-"`
 	RespBytes      []byte `json:"-"`
-	ErrorStrIdx    uint16
-	LabelIdx       uint16
+
+	strIndex *StrIndex
 }
 
 func (i *OutputItem) EndWithError(err error) *OutputItem {
@@ -82,6 +81,10 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 	err = binary.Write(fd, endian, int16(i.Status))
 	if err != nil {
 		panic(err)
+	}
+
+	if i.ErrorStrIdx == 0 && i.Error != nil {
+		panic("TODO")
 	}
 
 	err = binary.Write(fd, endian, int16(i.ErrorStrIdx))
@@ -124,6 +127,10 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 		panic(err)
 	}
 
+	if i.LabelIdx == 0 && i.Label != "" {
+		panic("TODO")
+	}
+
 	err = binary.Write(fd, endian, i.LabelIdx)
 	if err != nil {
 		panic(err)
@@ -140,32 +147,40 @@ func (i *OutputItem) WriteBinary(fd io.Writer) {
 	}
 }
 
-type MultiFileOutput struct {
-	Outs []SingleOut
+func (i *OutputItem) StringFriendly() {
+	if i.Error != nil {
+		i.ErrorStr = i.Error.Error()
+	}
 
-	// get result from worker via channel
-	// write small binary results
-	// write full request/response for debugging
-	// write only failures request/response
-	pipe chan *OutputItem
+	if i.Label == "" && i.LabelIdx > 0 {
+		i.Label = i.strIndex.Get(i.LabelIdx)
+	}
 }
 
-func (m *MultiFileOutput) Close() {
+type Output struct {
+	Outs []SingleOut
+
+	pipe     chan *OutputItem
+	strIndex *StrIndex
+}
+
+func (m *Output) Close() {
 	log.Infof("Closing output")
 	for _, out := range m.Outs {
 		out.Close()
 	}
 }
 
-func (m *MultiFileOutput) Start(OutputConf) {
+func (m *Output) Start(OutputConf) {
 	go m.Background()
 }
 
-func (m *MultiFileOutput) Push(res *OutputItem) {
+func (m *Output) Push(res *OutputItem) {
+	res.strIndex = m.strIndex
 	m.pipe <- res
 }
 
-func (m *MultiFileOutput) Background() {
+func (m *Output) Background() {
 	for {
 		res := <-m.pipe
 		for _, out := range m.Outs {
@@ -174,10 +189,14 @@ func (m *MultiFileOutput) Background() {
 	}
 }
 
-func NewMultiOutput(conf OutputConf) Output {
-	out := MultiFileOutput{
+func NewOutput(conf OutputConf) *Output {
+	out := Output{
 		Outs: make([]SingleOut, 0),
 		pipe: make(chan *OutputItem),
+	}
+
+	if conf.StringsFile != "" {
+		out.strIndex = NewStringIndex(conf.StringsFile)
 	}
 
 	if conf.LDJSONFile != "" {
@@ -202,6 +221,7 @@ func NewMultiOutput(conf OutputConf) Output {
 
 		out.Outs = append(out.Outs, &BinaryOut{
 			fd: file,
+			mx: new(sync.Mutex),
 		})
 	}
 
@@ -233,6 +253,7 @@ type LDJSONOut struct {
 }
 
 func (L *LDJSONOut) Push(item *OutputItem) {
+	item.StringFriendly()
 	data, err := json.Marshal(item)
 	if err != nil {
 		panic(err)
@@ -259,6 +280,7 @@ type ReqRespOut struct {
 
 func (d ReqRespOut) Push(item *OutputItem) {
 	if item.Status >= d.Level {
+		item.StringFriendly()
 		// meta
 		data, err := json.Marshal(item)
 		if err != nil {
@@ -285,13 +307,29 @@ func (d ReqRespOut) Close() {
 }
 
 type BinaryOut struct {
-	fd *os.File
+	fd     *os.File
+	lastTS uint64
+	mx     *sync.Mutex
 }
 
 func (o *BinaryOut) Close() {
+	o.mx.Lock()
+	defer o.mx.Unlock()
 	_ = o.fd.Close()
 }
 
 func (o *BinaryOut) Push(item *OutputItem) {
+	o.mx.Lock()
+	defer o.mx.Unlock()
+
+	if item.Error != nil && item.ErrorStrIdx == 0 {
+		item.ErrorStrIdx = item.strIndex.Idx(item.Error.Error())
+	}
+
 	item.WriteBinary(o.fd)
+
+	if item.StartTS > o.lastTS {
+		_ = o.fd.Sync()
+		o.lastTS = item.StartTS
+	}
 }

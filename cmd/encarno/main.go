@@ -97,7 +97,19 @@ func Run(config core.Configuration) {
 	status := core.NewStatus()
 	status.Start()
 
-	output := core.NewMultiOutput(config.Output)
+	if config.Input.StringsFile != "" && config.Output.StringsFile != "" {
+		input, err := ioutil.ReadFile(config.Input.StringsFile)
+		if err != nil {
+			panic(err)
+		}
+
+		err = ioutil.WriteFile(config.Output.StringsFile, input, 0644)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	output := core.NewOutput(config.Output)
 	output.Start(config.Output)
 	defer output.Close()
 
@@ -127,7 +139,7 @@ func NewNibMaker(protocol core.ProtoConf) core.NibMaker {
 	}
 }
 
-func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output core.Output, status *core.Status) core.WorkerSpawner {
+func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMaker core.NibMaker, output *core.Output, status *core.Status) core.WorkerSpawner {
 	base := core.NewBaseWorkload(nibMaker, output, inputConfig, workersConf, status)
 	switch workersConf.Mode {
 	case core.WorkloadOpen:

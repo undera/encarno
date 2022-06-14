@@ -30,7 +30,7 @@ type BaseWorkload struct {
 	Workers      []*Worker
 	NibMaker     NibMaker
 	StartTime    time.Time
-	Output       Output
+	Output       *Output
 	InputPayload func() InputChannel
 	Scenario     []WorkloadLevel
 	cnt          int
@@ -53,7 +53,7 @@ func (s *BaseWorkload) Stop() {
 	}
 }
 
-func NewBaseWorkload(maker NibMaker, output Output, inputConfig InputConf, wconf WorkerConf, status *Status) *BaseWorkload {
+func NewBaseWorkload(maker NibMaker, output *Output, inputConfig InputConf, wconf WorkerConf, status *Status) *BaseWorkload {
 	var payloadGetter func() InputChannel
 	if inputConfig.EnableRegexes {
 		payloadGetter = func() InputChannel {

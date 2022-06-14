@@ -15,12 +15,13 @@ type Worker struct {
 	Abort          <-chan struct{}
 	InputPayload   InputChannel
 	InputSchedule  ScheduleChannel
-	Output         Output
+	Output         *Output
 	Values         map[string][]byte
 	Finished       bool
 	IterationCount int
 	Status         *Status
-	stopped        bool
+
+	stopped bool
 }
 
 func (w *Worker) Run() {
