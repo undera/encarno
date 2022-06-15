@@ -7,12 +7,19 @@ import (
 )
 
 func TestConnPool(t *testing.T) {
-	pool := NewConnectionPool(1, 1*time.Second, core.TLSConf{})
-	conn, err := pool.Get("http://localhost:8070", "")
-	if err != nil {
-		t.Error(err)
+	addrs := []string{
+		"http://localhost:8070",
+		"https://www.google.com",
 	}
 
-	pool.Return("http://localhost:8070", conn)
-	// TODO: assert something
+	for _, addr := range addrs {
+		pool := NewConnectionPool(1, 1*time.Second, core.TLSConf{})
+		conn, err := pool.Get(addr, "")
+		if err != nil {
+			t.Error(err)
+		} else {
+			pool.Return(addr, conn)
+			// TODO: assert something
+		}
+	}
 }
