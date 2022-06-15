@@ -140,14 +140,14 @@ type ConnPool struct {
 	mxDialer       *sync.Mutex
 }
 
-func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
+func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.TLSConf) *ConnPool {
 	plainDialer := net.Dialer{
 		Timeout: timeout,
 	}
 
 	pool := &ConnPool{
 		plainDialer:    &plainDialer,
-		TLSConf:        pconf.TLSConf,
+		TLSConf:        pconf,
 		tlsDialers:     map[string]*tls.Dialer{},
 		Idle:           map[string]ConnChan{},
 		MaxConnections: maxConnections,
