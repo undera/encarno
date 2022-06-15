@@ -275,7 +275,7 @@ class EncarnoFilesGenerator(object):
 
     def get_results_reader(self):
         if self.output_format == "bin":
-            return KPIReaderBinary(self.kpi_file, self.log, self.executor.stderr.name)
+            return KPIReaderBinary(self.kpi_file, self.output_strings, self.log, self.executor.stderr.name)
         elif self.output_format == "ldjson":
             return KPIReaderLDJSON(self.kpi_file, self.log, self.executor.stderr.name)
         else:
@@ -487,10 +487,12 @@ class KPIReaderBinary(ResultsReader):
     FORMAT = "<L HH L 5d LH QQ"
     CHUNK_LEN = struct.calcsize(FORMAT)
 
-    def __init__(self, filename, parent_logger, health_filename):
+    def __init__(self, filename, str_filename, parent_logger, health_filename):
         super().__init__()
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, file_opener=lambda x: open(x, 'rb'), parent_logger=self.log)
+        self.str_file = FileReader(filename=str_filename, parent_logger=self.log)
+        self.str_map = {}
         self.partial_buffer = bytes()
         self.health_reader = HealthReader(health_filename, parent_logger)
 
@@ -517,10 +519,10 @@ class KPIReaderBinary(ResultsReader):
             tstmp, rcd, err_idx, concur, rtm, cnn, sent, ltc, recv, wrk, lbl_idx, sbytes, rbytes = item
 
             error = None
-            label = ""  # TODO
-
             if err_idx > 0:
-                error = "some"  # TODO
+                error = self._get_strindex(err_idx)
+
+            label = self._get_strindex(lbl_idx)
 
             if rcd >= 400 and not error:  # TODO: should this be under config flag?
                 error = http.HTTPStatus(rcd).phrase
@@ -532,6 +534,15 @@ class KPIReaderBinary(ResultsReader):
 
     def _ramp_up_exclude(self):
         return False
+
+    def _get_strindex(self, idx):
+        if idx >= len(self.str_map):
+            for line in self.str_file.get_lines(1024 * 1024):
+                if not line.endswith("\n"):
+                    logging.warning("Partial line read. Report this to Encarno developers.")
+                self.str_map[len(self.str_map)] = line.rstrip()
+
+        return self.str_map[idx - 1]
 
 
 class HealthReader:
