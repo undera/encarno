@@ -9,6 +9,7 @@ import (
 func TestConnPool(t *testing.T) {
 	addrs := []string{
 		"localhost:8070",
+		"[::1]:8070",
 		"https://www.google.com",
 	}
 
