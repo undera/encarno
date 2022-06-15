@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"math/rand"
 	"strconv"
 	"time"
 )
@@ -27,15 +26,16 @@ type DummyNib struct {
 }
 
 func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
+	now := time.Now()
 	o := &OutputItem{
-		StartTime: time.Now(),
-		Status:    uint16(rand.Intn(5)*100 + 100),
-		Label:     "label#" + strconv.Itoa(rand.Intn(3)),
+		StartTime: now,
+		Status:    uint16((1 + now.Unix()%5) * 100),
+		Label:     "label#" + strconv.Itoa(int(now.Unix()%3)),
 	}
 
 	o.LabelIdx = item.StrIndex.Idx(o.Label)
 
-	duration := time.Duration(rand.Intn(1000)) * time.Microsecond
+	duration := time.Duration(now.Unix()%1000) * time.Microsecond
 	time.Sleep(duration)
 
 	o.Elapsed = time.Now().Sub(o.StartTime)

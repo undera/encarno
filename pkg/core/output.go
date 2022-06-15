@@ -212,8 +212,9 @@ func NewOutput(conf OutputConf) *Output {
 		}
 
 		out.Outs = append(out.Outs, &BinaryOut{
-			fd: file,
-			mx: new(sync.Mutex),
+			fd:     file,
+			writer: bufio.NewWriter(file),
+			mx:     new(sync.Mutex),
 		})
 	}
 
@@ -300,19 +301,21 @@ func (d ReqRespOut) Close() {
 
 type BinaryOut struct {
 	fd     *os.File
+	writer *bufio.Writer
 	lastTS uint64
 	mx     *sync.Mutex
 }
 
 func (o *BinaryOut) Close() {
-	o.mx.Lock()
-	defer o.mx.Unlock()
+	//o.mx.Lock()
+	//defer o.mx.Unlock()
+	_ = o.writer.Flush()
 	_ = o.fd.Close()
 }
 
 func (o *BinaryOut) Push(item *OutputItem) {
-	o.mx.Lock()
-	defer o.mx.Unlock()
+	//o.mx.Lock()
+	//defer o.mx.Unlock()
 
 	if item.Error != nil && item.ErrorStrIdx == 0 {
 		item.ErrorStrIdx = item.strIndex.Idx(item.Error.Error())
@@ -322,10 +325,10 @@ func (o *BinaryOut) Push(item *OutputItem) {
 		item.LabelIdx = item.strIndex.Idx(item.Label)
 	}
 
-	item.WriteBinary(o.fd)
+	item.WriteBinary(o.writer)
 
 	if item.StartTS > o.lastTS {
-		_ = o.fd.Sync()
+		_ = o.writer.Flush()
 		o.lastTS = item.StartTS
 	}
 }
