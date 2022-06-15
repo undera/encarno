@@ -2,33 +2,20 @@
 execution:
   - executor: encarno
     scenario: simple
-    concurrency: 10
-    throughput: 2000
-    ramp-up: 5m
+    concurrency: 1
+    #throughput: 100000
+    #iterations: 1
+    #ramp-up: 5m
     # steps: 60
-    #hold-for: 20s
+    hold-for: 1m
 
 scenarios:
   simple:
-    default-address: https://localhost:8070/
-    tls-config:
-      insecureskipverify: true
-      minversion: 771
-      maxversion: 771
-      tlsciphersuites:
-        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-        - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        - TLS_RSA_WITH_AES_128_CBC_SHA
-        - TLS_RSA_WITH_AES_128_CBC_SHA256
-        - TLS_RSA_WITH_AES_128_GCM_SHA256
-        - TLS_RSA_WITH_AES_256_CBC_SHA
-        - TLS_RSA_WITH_AES_256_GCM_SHA384
-    #headers:
-    #  X-Marker: value
+    protocol: http
+    default-address: http://localhost:8070/
 
-    requests1: taurus/urls.txt
+    #script: /tmp/1.in
+    #requests: taurus/urls.txt
     requests:
       - /
       #- /gimme404
@@ -37,19 +24,21 @@ scenarios:
       #- http://localhost:8000/bin/encarno
       # - http://192.168.1.254/favicon.ico # my router
 
-    #trace-level: 600
+    # trace-level: 600
 
-#reporting:
-#  - csvresults
+reporting:
+  - csvresults
 
 services:
   - module: shellexec
     prepare:
-      - go build -a -tags netgo -ldflags '-w' -o bin/encarno cmd/encarno/main.go
+      - go build -o bin/encarno cmd/encarno/main.go
 
 modules:
   encarno:
     path: bin/encarno
+    # output-format: ldjson
+    # index-input-strings: false
 
   console:
     disable: false

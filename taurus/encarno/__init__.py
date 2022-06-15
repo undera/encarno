@@ -1,7 +1,9 @@
 import http
 import json
+import logging
 import os.path
 import platform
+import struct
 import traceback
 from json import JSONDecodeError
 from urllib.parse import urlencode, urlparse
@@ -187,6 +189,9 @@ class EncarnoFilesGenerator(object):
         :type base_logger: logging.Logger
         """
         super().__init__()
+        self.output_strings = None
+        self.input_strings = None
+        self.output_format = "bin"
         self.stats_file = None
         self.kpi_file = None
         self.log = base_logger.getChild(self.__class__.__name__)
@@ -198,7 +203,6 @@ class EncarnoFilesGenerator(object):
         self.payload_file = None
 
     def generate_config(self, scenario, load):
-        self.kpi_file = self.engine.create_artifact("encarno_results", ".ldjson")
         self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
@@ -212,12 +216,12 @@ class EncarnoFilesGenerator(object):
             },
             "input": {
                 "payloadfile": self.payload_file,
+                "stringsfile": self.input_strings if self.input_strings else "",
                 "iterationlimit": load.iterations,
             },
             "output": {
-                "ldjsonfile": self.kpi_file,
                 "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",
-                "reqrespfilelevel": trace_level
+                "reqrespfilelevel": trace_level,
             },
             "workers": {
                 "mode": "open" if load.throughput else "closed",
@@ -225,6 +229,17 @@ class EncarnoFilesGenerator(object):
                 "maxworkers": load.concurrency,
             }
         }
+
+        self.output_format = self.settings.get("output-format", self.output_format)
+        self.kpi_file = self.engine.create_artifact("encarno_results", "." + self.output_format)
+        if self.output_format == "bin":
+            cfg['output']["binaryfile"] = self.kpi_file
+            self.output_strings = self.engine.create_artifact("encarno_results", ".ostr")
+            cfg['output']["stringsfile"] = self.output_strings
+        elif self.output_format == "ldjson":
+            cfg['output']["ldjsonfile"] = self.kpi_file
+        else:
+            raise TaurusConfigError("Unsupported output-format: %s" % self.output_format)
 
         self.config_file = self.engine.create_artifact("encarno_cfg", ".yaml")
         with open(self.config_file, "w") as fp:
@@ -259,17 +274,31 @@ class EncarnoFilesGenerator(object):
         return res
 
     def get_results_reader(self):
-        return KPIReader(self.kpi_file, self.log, self.executor.stderr.name)
+        if self.output_format == "bin":
+            return KPIReaderBinary(self.kpi_file, self.output_strings, self.log, self.executor.stderr.name)
+        elif self.output_format == "ldjson":
+            return KPIReaderLDJSON(self.kpi_file, self.log, self.executor.stderr.name)
+        else:
+            raise TaurusConfigError("Unsupported output-format: %s" % self.output_format)
 
     def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
 
         if not self.payload_file:  # generation from requests
-            self.payload_file = self.engine.create_artifact("encarno", '.enc')
+            self.payload_file = self.engine.create_artifact("encarno", '.inp')
+            if self.settings.get("index-input-strings", True):
+                self.input_strings = self.engine.create_artifact("encarno", '.istr')
             self.log.info("Generating payload file: %s", self.payload_file)
-            self._generate_payload_inner(scenario)  # raises if there is no requests
+            str_list = self._generate_payload_inner(scenario)  # raises if there is no requests
+
+            if self.input_strings:
+                with open(self.input_strings, 'w') as fp:
+                    fp.writelines(x + "\n" for x in str_list)
+        else:
+            self.input_strings = scenario.get("input-strings")
 
     def _generate_payload_inner(self, scenario):
+        str_list = []
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
             requests = self._text_file_reader(req_val, scenario)
@@ -286,11 +315,24 @@ class EncarnoFilesGenerator(object):
 
                 host, tcp_payload = self._build_request(request, scenario)
 
-                metadata = {
-                    "PayloadLen": len(tcp_payload.encode('utf-8')),
-                    "Address": host,
-                    "Label": request.label,
-                }
+                if self.input_strings:
+                    if host not in str_list:
+                        str_list.append(host)
+
+                    if request.label not in str_list:
+                        str_list.append(request.label)
+
+                    metadata = {
+                        "plen": len(tcp_payload.encode('utf-8')),
+                        "a": str_list.index(host) + 1,
+                        "l": str_list.index(request.label) + 1
+                    }
+                else:
+                    metadata = {
+                        "plen": len(tcp_payload.encode('utf-8')),
+                        "address": host,
+                        "label": request.label,
+                    }
 
                 fds.write(json.dumps(metadata))  # metadata
                 fds.write("\r\n")  # sep
@@ -306,6 +348,8 @@ class EncarnoFilesGenerator(object):
                 return self._generate_payload_inner(scenario)
 
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
+
+        return str_list
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)
@@ -374,9 +418,9 @@ def ns2sec(val):
     return int(val) / 1000000000.0
 
 
-class KPIReader(ResultsReader):
+class KPIReaderLDJSON(ResultsReader):
     """
-    Class to read KPI
+    Class to read KPI from LDJSON file
     """
 
     def __init__(self, filename, parent_logger, health_filename):
@@ -384,7 +428,6 @@ class KPIReader(ResultsReader):
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, parent_logger=self.log)
         self.partial_buffer = ""
-        self.last_ts = None
         self.health_reader = HealthReader(health_filename, parent_logger)
 
     def _read(self, last_pass=False):
@@ -429,16 +472,77 @@ class KPIReader(ResultsReader):
 
             tstmp = int(row["StartTS"])
 
-            if tstmp != self.last_ts:
-                self.log.debug("New TS: %s", tstmp)
-                self.last_ts = tstmp
-
             byte_count = row["SentBytesCount"] + row["RespBytesCount"]
             concur = row["Concurrency"]
             yield tstmp, label, concur, rtm, cnn, ltc, rcd, error, '', byte_count
 
     def _ramp_up_exclude(self):
         return False
+
+
+class KPIReaderBinary(ResultsReader):
+    """
+    Class to read KPI from LDJSON file
+    """
+    FORMAT = "<L HH L 5d LH QQ"
+    CHUNK_LEN = struct.calcsize(FORMAT)
+
+    def __init__(self, filename, str_filename, parent_logger, health_filename):
+        super().__init__()
+        self.log = parent_logger.getChild(self.__class__.__name__)
+        self.file = FileReader(filename=filename, file_opener=lambda x: open(x, 'rb'), parent_logger=self.log)
+        self.str_file = FileReader(filename=str_filename, parent_logger=self.log)
+        self.str_map = {}
+        self.partial_buffer = bytes()
+        self.health_reader = HealthReader(health_filename, parent_logger)
+
+    def _read(self, last_pass=False):
+        """
+        Generator method that returns next portion of data
+
+        :type last_pass: bool
+        """
+        self.health_reader.read(last_pass)
+
+        data = self.file.get_bytes(size=1024 * 1024, last_pass=last_pass, decode=False)
+        if data is None:
+            return  # file not ready yet
+
+        data = self.partial_buffer + data
+        dlen = len(data)
+
+        offset = 0
+        while (offset + self.CHUNK_LEN) <= dlen:
+            item = struct.unpack_from(self.FORMAT, data, offset)
+            offset += self.CHUNK_LEN
+
+            tstmp, rcd, err_idx, concur, rtm, cnn, sent, ltc, recv, wrk, lbl_idx, sbytes, rbytes = item
+
+            error = None
+            if err_idx > 0:
+                error = self._get_strindex(err_idx)
+
+            label = self._get_strindex(lbl_idx)
+
+            if rcd >= 400 and not error:  # TODO: should this be under config flag?
+                error = http.HTTPStatus(rcd).phrase
+
+            byte_count = sbytes + rbytes
+            yield tstmp, label, concur, rtm, cnn, ltc, str(rcd), error, '', byte_count
+
+        self.partial_buffer = data[offset:]
+
+    def _ramp_up_exclude(self):
+        return False
+
+    def _get_strindex(self, idx):
+        if idx >= len(self.str_map):
+            for line in self.str_file.get_lines(1024 * 1024):
+                if not line.endswith("\n"):
+                    logging.warning("Partial line read. Report this to Encarno developers.")
+                self.str_map[len(self.str_map)] = line.rstrip()
+
+        return self.str_map[idx - 1]
 
 
 class HealthReader:

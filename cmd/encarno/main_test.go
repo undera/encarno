@@ -17,11 +17,12 @@ func TestConfig(t *testing.T) {
 
 func TestOpen(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
+	index := core.NewStringIndex("")
 
 	ichan := make(core.InputChannel)
 	go func() {
 		for {
-			ichan <- &core.PayloadItem{}
+			ichan <- &core.PayloadItem{StrIndex: index}
 		}
 	}()
 	inp := core.InputConf{
@@ -52,12 +53,14 @@ func TestClosed(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resultFile.Close()
+	_ = resultFile.Close()
+
+	index := core.NewStringIndex("")
 
 	ichan := make(core.InputChannel)
 	go func() {
 		for {
-			ichan <- &core.PayloadItem{}
+			ichan <- &core.PayloadItem{StrIndex: index}
 		}
 	}()
 	inp := core.InputConf{

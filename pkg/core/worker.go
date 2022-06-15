@@ -15,12 +15,13 @@ type Worker struct {
 	Abort          <-chan struct{}
 	InputPayload   InputChannel
 	InputSchedule  ScheduleChannel
-	Output         Output
+	Output         *Output
 	Values         map[string][]byte
 	Finished       bool
 	IterationCount int
 	Status         *Status
-	stopped        bool
+
+	stopped bool
 }
 
 func (w *Worker) Run() {
@@ -46,17 +47,15 @@ outer:
 func (w *Worker) Iteration() bool {
 	w.Status.IncWaiting()
 	offset := <-w.InputSchedule
-	w.Status.DecWaiting()
-
-	w.Status.IncWorking()
-	w.IterationCount += 1
-
 	item := <-w.InputPayload
 	if item == nil {
 		return true
 	}
-
 	item.ReplaceValues(w.Values)
+	w.Status.DecWaiting()
+
+	w.Status.IncWorking()
+	w.IterationCount += 1
 
 	expectedStart := w.StartTime.Add(offset)
 	delay := expectedStart.Sub(time.Now())
@@ -69,25 +68,34 @@ func (w *Worker) Iteration() bool {
 	}
 
 	if !w.stopped {
-		w.Status.IncBusy()
-		res := w.Nib.Punch(item)
-		res.StartTS = res.StartTime.Unix() // TODO: use nanoseconds
-		res.Worker = w.Index
-		if res.Error != nil {
-			res.ErrorStr = res.Error.Error()
-		}
+		item.ResolveStrings()
+		res := w.DoBusy(item)
 		w.Status.StartMissed(res.StartTime.Sub(expectedStart))
-		res.ExtractValues(item.RegexOut, w.Values)
-		res.ReqBytes = item.Payload
-		if item.Label != "" { // allow Nib to generate own label
-			res.Label = item.Label
-		}
-		res.Concurrency = w.Status.GetBusy()
-		w.Output.Push(res)
-		w.Status.DecBusy()
 	}
 	w.Status.DecWorking()
 	return false
+}
+
+func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
+	w.Status.IncBusy()
+	res := w.Nib.Punch(item)
+	res.StartTS = uint32(res.StartTime.Unix()) // TODO: use nanoseconds
+	res.Worker = uint32(w.Index)
+	res.ExtractValues(item.RegexOut, w.Values)
+	res.ReqBytes = item.Payload
+
+	if item.Label != "" { // allow Nib to generate own label
+		res.Label = item.Label
+	}
+
+	if item.LabelIdx != 0 { // allow Nib to generate own label index
+		res.LabelIdx = item.LabelIdx
+	}
+
+	res.Concurrency = uint32(w.Status.GetBusy())
+	w.Output.Push(res)
+	w.Status.DecBusy()
+	return res
 }
 
 func (w *Worker) Stop() {

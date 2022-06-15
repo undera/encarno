@@ -22,7 +22,7 @@ func TestClosedGenerator(t *testing.T) {
 		return core.DummyNib{}
 	}
 
-	out := &core.MultiFileOutput{}
+	out := &core.Output{}
 	wconf := core.WorkerConf{
 		WorkloadSchedule: []core.WorkloadLevel{
 			{0, 10, 5 * time.Second},
