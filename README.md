@@ -340,6 +340,7 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 ### 0.4 -- upcoming
 - binary output writer&reader, including strings externalization, helper tools to translate into human-readable
+- fixes for ipv6, removed internal round-robin cache for DNS for now
 
 
 ### 0.2 and 0.3 -- 13 jun 2022
@@ -363,7 +364,6 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 - scripting elements in input, whole scripting flow, asserts
  
-- http://[::1]:8070/ - should work fine
 - respect `iterations` option from Taurus config, test it, handle "only iterations and no duration is specified"
 
 - when workers decrease (input exhausted or panics), reflect that in counters
@@ -373,8 +373,6 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 ### Parking lot
 
-- limit len of auto-label for long GET urls
-- udp protocol nib
 - auto-USL workload
 - option to inject into k8s
     - inject all the files
@@ -382,6 +380,8 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
     - https://github.com/kubernetes-client/python
     - Download artifacts
       back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
+- limit len of auto-label for long GET urls
+- udp protocol nib
 - Go plugins used for nib
 
 

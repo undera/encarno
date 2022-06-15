@@ -16,7 +16,7 @@ func TestOne(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.TLSConf{}),
 	}
 
 	type Item struct {
@@ -83,7 +83,7 @@ func TestConnClose(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.TLSConf{}),
 	}
 
 	type Item struct {
@@ -124,10 +124,8 @@ func TestTLSIssues(t *testing.T) {
 	log.Debugf("%s, %v", res.Status, err)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 5*time.Second, core.ProtoConf{
-			TLSConf: core.TLSConf{
-				TLSCipherSuites: []string{"TLS_AES_128_GCM_SHA256"},
-			},
+		ConnPool: NewConnectionPool(100, 5*time.Second, core.TLSConf{
+			TLSCipherSuites: []string{"TLS_AES_128_GCM_SHA256"},
 		}),
 	}
 
@@ -164,7 +162,7 @@ func TestLoop(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
 	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second, core.ProtoConf{}),
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.TLSConf{}),
 	}
 
 	item := core.PayloadItem{

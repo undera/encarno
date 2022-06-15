@@ -1,25 +1,26 @@
 package http
 
 import (
-	"context"
+	"encarno/pkg/core"
 	"testing"
+	"time"
 )
 
-func TestResolver(t *testing.T) {
-	r := NewResolver()
-	host, err := r.ResolveHost(context.Background(), "www.com")
-	t.Logf("%s, %v", host, err)
-	host2, err2 := r.ResolveHost(context.Background(), "www.com")
-	t.Logf("%s, %v", host2, err2)
-	if host2 == host {
-		t.Error("Should round-robin")
+func TestConnPool(t *testing.T) {
+	addrs := []string{
+		"localhost:8070",
+		"[::1]:8070",
+		"https://www.google.com",
 	}
 
-	host, err = r.ResolveHost(context.Background(), "ipv4.com")
-	t.Logf("%s, %v", host, err)
-	host2, err2 = r.ResolveHost(context.Background(), "ipv4.com")
-	t.Logf("%s, %v", host, err)
-	if host2 != host {
-		t.Error("Should be just one")
+	for _, addr := range addrs {
+		pool := NewConnectionPool(1, 1*time.Second, core.TLSConf{})
+		conn, err := pool.Get(addr, "")
+		if err != nil {
+			t.Error(err)
+		} else {
+			pool.Return(addr, conn)
+			// TODO: assert something
+		}
 	}
 }

@@ -133,7 +133,6 @@ type ConnPool struct {
 	Idle           map[string]ConnChan
 	MaxConnections int
 	Timeout        time.Duration
-	resolver       *RRResolver
 	plainDialer    *net.Dialer
 	tlsDialers     map[string]*tls.Dialer
 	TLSConf        core.TLSConf
@@ -141,15 +140,14 @@ type ConnPool struct {
 	mxDialer       *sync.Mutex
 }
 
-func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.ProtoConf) *ConnPool {
+func NewConnectionPool(maxConnections int, timeout time.Duration, pconf core.TLSConf) *ConnPool {
 	plainDialer := net.Dialer{
 		Timeout: timeout,
 	}
 
 	pool := &ConnPool{
-		resolver:       NewResolver(),
 		plainDialer:    &plainDialer,
-		TLSConf:        pconf.TLSConf,
+		TLSConf:        pconf,
 		tlsDialers:     map[string]*tls.Dialer{},
 		Idle:           map[string]ConnChan{},
 		MaxConnections: maxConnections,
@@ -210,19 +208,10 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
-	host, port, foundSep := strings.Cut(parsed.Host, ":") // FIXME: what if it's already an ipv6?
-
-	host, err = p.resolver.ResolveHost(ctx, host)
-	if err != nil {
-		return nil, err
-	}
+	host, port := SplitHostPort(parsed.Host)
 
 	if parsed.Scheme == "https" {
-		if foundSep { //FIXME: ipv6 won't work well
-			host = host + ":" + port
-		} else {
-			host = host + ":443"
-		}
+		host = p.improveHost(host, port, "443")
 
 		if hint == "" {
 			hint = parsed.Host
@@ -231,15 +220,36 @@ func (p *ConnPool) openConnection(hostname string, hint string) (net.Conn, error
 		log.Debugf("Dialing TLS: %s", host)
 		return p.tlsDialerForHost(parsed.Host, hint).DialContext(ctx, "tcp", host)
 	} else {
-		if foundSep { //FIXME: ipv6 won't work well
-			host = host + ":" + port
-		} else {
-			host = host + ":80"
-		}
+		host = p.improveHost(host, port, "80")
 
 		log.Debugf("Dialing plain: %s", host)
 		return p.plainDialer.DialContext(ctx, "tcp", host)
 	}
+}
+
+func SplitHostPort(host string) (string, string) {
+	if strings.IndexByte(host, '[') == 0 && strings.IndexByte(host, ']') > 0 { // ipv6
+		host, port, _ := strings.Cut(host, "]")
+		_, port, _ = strings.Cut(port, ":")
+		_, host, _ = strings.Cut(host, "[")
+		return host, port
+	} else {
+		host, port, _ := strings.Cut(host, ":")
+		return host, port
+	}
+}
+
+func (p *ConnPool) improveHost(host string, port string, defPort string) string {
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+
+	if port != "" {
+		host = host + ":" + port
+	} else {
+		host = host + ":" + defPort
+	}
+	return host
 }
 
 func (p *ConnPool) Return(hostname string, conn *BufferedConn) {
@@ -283,43 +293,4 @@ func (p *ConnPool) tlsDialerForHost(host string, hint string) *tls.Dialer {
 	p.tlsDialers[host] = dialer
 
 	return dialer
-}
-
-func NewResolver() *RRResolver {
-	return &RRResolver{
-		Resolver: net.Resolver{},
-		Cache:    map[string][]string{},
-		mx:       sync.Mutex{},
-	}
-}
-
-type RRResolver struct {
-	Resolver net.Resolver
-	Cache    map[string][]string
-	mx       sync.Mutex
-}
-
-func (r *RRResolver) ResolveHost(ctx context.Context, host string) (string, error) {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
-	ips, found := r.Cache[host]
-	if !found {
-		var err error
-		log.Debugf("Looking up IP for: %s", host)
-		ips, err = r.Resolver.LookupHost(ctx, host)
-		if err != nil {
-			return "", err
-		}
-		r.Cache[host] = ips
-	}
-
-	ip := ips[0]
-	r.Cache[host] = append(ips[1:], ip)
-
-	if strings.Contains(ip, ":") {
-		ip = "[" + ip + "]"
-	}
-
-	return ip, nil
 }
