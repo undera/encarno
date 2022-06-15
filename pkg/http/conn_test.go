@@ -8,7 +8,7 @@ import (
 
 func TestConnPool(t *testing.T) {
 	addrs := []string{
-		"http://localhost:8070",
+		"localhost:8070",
 		"https://www.google.com",
 	}
 
