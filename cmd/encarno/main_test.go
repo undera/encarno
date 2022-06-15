@@ -8,7 +8,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	cfg := "/media/BIG/bzt-artifacts/some/encarno_cfg.yaml"
+	cfg := "/media/BIG/bzt-artifacts/2022-06-15_15-48-34.595082/encarno_cfg.yaml"
 	if _, err := os.Stat(cfg); err == nil {
 		config := LoadConfig(cfg)
 		Run(config)
@@ -22,7 +22,7 @@ func TestOpen(t *testing.T) {
 	ichan := make(core.InputChannel)
 	go func() {
 		for {
-			ichan <- &core.PayloadItem{StrIndex: index}
+			ichan <- &core.PayloadItem{StrIndex: index, Address: "localhost:8070"}
 		}
 	}()
 	inp := core.InputConf{
@@ -42,7 +42,7 @@ func TestOpen(t *testing.T) {
 				},
 			},
 		},
-		Protocol: core.ProtoConf{Driver: "dummy"},
+		Protocol: core.ProtoConf{Driver: "http"},
 	}
 	Run(c)
 }
