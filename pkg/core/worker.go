@@ -79,7 +79,7 @@ func (w *Worker) Iteration() bool {
 func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
 	w.Status.IncBusy()
 	res := w.Nib.Punch(item)
-	res.StartTS = uint64(res.StartTime.Unix()) // TODO: use nanoseconds
+	res.StartTS = uint32(res.StartTime.Unix()) // TODO: use nanoseconds
 	res.Worker = uint32(w.Index)
 	res.ExtractValues(item.RegexOut, w.Values)
 	res.ReqBytes = item.Payload

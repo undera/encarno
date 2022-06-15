@@ -24,7 +24,7 @@ type OutputConf struct {
 
 type OutputItem struct { // all fields should have fixed types
 	StartTime time.Time `json:"-"`
-	StartTS   uint64    // for result readers, to avoid date parsing
+	StartTS   uint32    // for result readers, to avoid date parsing
 
 	Status      uint16
 	Error       error  `json:"-"`
@@ -302,7 +302,7 @@ func (d ReqRespOut) Close() {
 type BinaryOut struct {
 	fd     *os.File
 	writer *bufio.Writer
-	lastTS uint64
+	lastTS uint32
 	mx     *sync.Mutex
 }
 

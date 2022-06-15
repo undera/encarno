@@ -484,7 +484,7 @@ class KPIReaderBinary(ResultsReader):
     """
     Class to read KPI from LDJSON file
     """
-    FORMAT = "<Q HH L 5d LH QQ"
+    FORMAT = "<L HH L 5d LH QQ"
     CHUNK_LEN = struct.calcsize(FORMAT)
 
     def __init__(self, filename, parent_logger, health_filename):
@@ -528,7 +528,7 @@ class KPIReaderBinary(ResultsReader):
             byte_count = sbytes + rbytes
             yield tstmp, label, concur, rtm, cnn, ltc, str(rcd), error, '', byte_count
 
-        self.partial_buffer = data
+        self.partial_buffer = data[offset:]
 
     def _ramp_up_exclude(self):
         return False
