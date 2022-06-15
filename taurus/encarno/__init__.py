@@ -507,10 +507,12 @@ class KPIReaderBinary(ResultsReader):
             return  # file not ready yet
 
         data = self.partial_buffer + data
+        dlen = len(data)
 
-        while len(data) >= self.CHUNK_LEN:
-            item = struct.unpack_from(self.FORMAT, data)
-            data = data[self.CHUNK_LEN:]
+        offset = 0
+        while (offset + self.CHUNK_LEN) <= dlen:
+            item = struct.unpack_from(self.FORMAT, data, offset)
+            offset += self.CHUNK_LEN
 
             tstmp, rcd, err_idx, concur, rtm, cnn, sent, ltc, recv, wrk, lbl_idx, sbytes, rbytes = item
 

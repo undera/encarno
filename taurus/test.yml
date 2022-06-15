@@ -2,10 +2,10 @@
 execution:
   - executor: encarno
     scenario: simple
-    concurrency: 20
+    concurrency: 16
     # throughput: 1000
     #iterations: 1
-    ramp-up: 3m
+    ramp-up: 80s
     # steps: 60
     #hold-for: 20s
 

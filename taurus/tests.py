@@ -18,4 +18,5 @@ for item in obj.datapoints(True):
     logging.info("%s %s", item[DataPoint.TIMESTAMP], item[DataPoint.CURRENT])
 
 elapsed = time.time() - start
-logging.info("Finished: %s, speed %s", elapsed, item[DataPoint.CUMULATIVE][''][KPISet.SAMPLE_COUNT] / elapsed)
+cnt = item[DataPoint.CUMULATIVE][''][KPISet.SAMPLE_COUNT]
+logging.info("Finished: %s, %s cnt, speed %s", elapsed, cnt, cnt / elapsed)
