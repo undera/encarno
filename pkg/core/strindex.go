@@ -25,7 +25,9 @@ func NewStringIndex(fname string) *StrIndex {
 	}
 
 	if fname != "" {
-		ret.Load()
+		if _, err := os.Stat(fname); err == nil {
+			ret.Load()
+		}
 	}
 	return &ret
 }

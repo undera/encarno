@@ -33,9 +33,11 @@ func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 		Label:     "label#" + strconv.Itoa(int(now.Unix()%3)),
 	}
 
-	o.LabelIdx = item.StrIndex.Idx(o.Label)
+	if item.StrIndex != nil {
+		o.LabelIdx = item.StrIndex.Idx(o.Label)
+	}
 
-	duration := time.Duration(now.Unix()%1000) * time.Microsecond
+	duration := time.Duration(now.Unix()%100) * time.Microsecond
 	time.Sleep(duration)
 
 	o.Elapsed = time.Now().Sub(o.StartTime)

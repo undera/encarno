@@ -324,8 +324,8 @@ class EncarnoFilesGenerator(object):
 
                     metadata = {
                         "plen": len(tcp_payload.encode('utf-8')),
-                        "iaddr": str_list.index(host) + 1,
-                        "ilbl": str_list.index(request.label) + 1
+                        "a": str_list.index(host) + 1,
+                        "l": str_list.index(request.label) + 1
                     }
                 else:
                     metadata = {

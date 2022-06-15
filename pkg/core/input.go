@@ -28,10 +28,10 @@ type InputChannel chan *PayloadItem
 type ScheduleChannel chan time.Duration
 
 type PayloadItem struct {
-	LabelIdx uint16 `json:"ilbl"`
+	LabelIdx uint16 `json:"l"`
 	Label    string `json:"label"`
 
-	AddressIdx uint16 `json:"iaddr"`
+	AddressIdx uint16 `json:"a"`
 	Address    string `json:"address"`
 
 	PayloadLen int `json:"plen"`
