@@ -26,6 +26,7 @@ type InputConf struct {
 
 type InputChannel chan *PayloadItem
 type ScheduleChannel chan time.Duration
+type ValMap = map[string][]byte
 
 type PayloadItem struct {
 	LabelIdx uint16 `json:"l"`
@@ -37,15 +38,26 @@ type PayloadItem struct {
 	PayloadLen int `json:"plen"`
 	Payload    []byte
 
+	ReplacesIdx []uint16 `json:"r"`
+	Replaces    []string `json:"replaces"`
+
 	RegexOut map[string]*ExtractRegex
 
 	StrIndex *StrIndex
 }
 
-func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
+var regexCache = map[string]*regexp.Regexp{}
+
+func (i *PayloadItem) ReplaceValues(values ValMap) {
 	// TODO: only do it for selected Values
 	for name, val := range values {
-		re := regexp.MustCompile("\\$\\{" + name + "}")
+		var re *regexp.Regexp
+		if r, ok := regexCache[name]; ok {
+			re = r
+		} else {
+			re = regexp.MustCompile("\\$\\{" + name + "}")
+			regexCache[name] = re
+		}
 		i.Payload = re.ReplaceAll(i.Payload, val)
 	}
 }

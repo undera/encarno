@@ -102,7 +102,14 @@ func (w *Worker) Stop() {
 	w.stopped = true
 }
 
-func NewBasicWorker(index int, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel) *Worker {
+func NewBasicWorker(index int, abort chan struct{}, wl *BaseWorkload, scheduleChan ScheduleChannel, values ValMap) *Worker {
+	// each worker gets own copy of values
+	// TODO: should each input iteration reset those values?
+	valuesCopy := make(ValMap)
+	for k, v := range values {
+		valuesCopy[k] = v
+	}
+
 	b := &Worker{
 		Index:         index,
 		Nib:           wl.NibMaker(),
@@ -112,6 +119,7 @@ func NewBasicWorker(index int, abort chan struct{}, wl *BaseWorkload, scheduleCh
 		Output:        wl.Output,
 		StartTime:     wl.StartTime,
 		Status:        wl.Status,
+		Values:        valuesCopy,
 	}
 	return b
 }

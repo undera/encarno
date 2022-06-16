@@ -24,6 +24,7 @@ type WorkerConf struct {
 	WorkloadSchedule []WorkloadLevel
 	StartingWorkers  int
 	MaxWorkers       int
+	Values           map[string]string
 }
 
 type BaseWorkload struct {
@@ -35,13 +36,14 @@ type BaseWorkload struct {
 	Scenario     []WorkloadLevel
 	cnt          int
 	Status       *Status
+	Values       ValMap
 }
 
 func (s *BaseWorkload) SpawnWorker(scheduleChan ScheduleChannel) {
 	s.cnt++
 	log.Infof("Spawning worker: #%d", s.cnt)
 	abort := make(chan struct{})
-	worker := NewBasicWorker(s.cnt, abort, s, scheduleChan)
+	worker := NewBasicWorker(s.cnt, abort, s, scheduleChan, s.Values)
 	s.Workers = append(s.Workers, worker)
 	go worker.Run()
 }
@@ -67,6 +69,11 @@ func NewBaseWorkload(maker NibMaker, output *Output, inputConfig InputConf, wcon
 		}
 	}
 
+	values := make(ValMap)
+	for k, v := range wconf.Values {
+		values[k] = []byte(v)
+	}
+
 	return &BaseWorkload{
 		Workers:      make([]*Worker, 0),
 		NibMaker:     maker,
@@ -75,5 +82,6 @@ func NewBaseWorkload(maker NibMaker, output *Output, inputConfig InputConf, wcon
 		InputPayload: payloadGetter,
 		Scenario:     wconf.WorkloadSchedule,
 		Status:       status,
+		Values:       values,
 	}
 }

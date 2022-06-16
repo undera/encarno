@@ -3,6 +3,7 @@ import json
 import logging
 import os.path
 import platform
+import re
 import struct
 import traceback
 from json import JSONDecodeError
@@ -227,6 +228,7 @@ class EncarnoFilesGenerator(object):
                 "mode": "open" if load.throughput else "closed",
                 "workloadschedule": self._translate_load(load),
                 "maxworkers": load.concurrency,
+                "values": scenario.get("variables", {}),
             }
         }
 
@@ -283,22 +285,32 @@ class EncarnoFilesGenerator(object):
 
     def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
+        uses_regex = scenario.get("enable-regex")
 
         if not self.payload_file:  # generation from requests
             self.payload_file = self.engine.create_artifact("encarno", '.inp')
             if self.settings.get("index-input-strings", True):
                 self.input_strings = self.engine.create_artifact("encarno", '.istr')
             self.log.info("Generating payload file: %s", self.payload_file)
-            str_list = self._generate_payload_inner(scenario)  # raises if there is no requests
+            str_list, found_regex = self._generate_payload_inner(scenario)  # raises if there is no requests
+            uses_regex = found_regex if uses_regex is None else uses_regex
 
             if self.input_strings:
                 with open(self.input_strings, 'w') as fp:
                     fp.writelines(x + "\n" for x in str_list)
+
         else:
             self.input_strings = scenario.get("input-strings")
 
+        return uses_regex
+
     def _generate_payload_inner(self, scenario):
         str_list = []
+        all_consumes = set()
+        all_extracts = set()
+
+        all_extracts.update(scenario.get("variables", {}).keys())
+
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
             requests = self._text_file_reader(req_val, scenario)
@@ -315,6 +327,9 @@ class EncarnoFilesGenerator(object):
 
                 host, tcp_payload = self._build_request(request, scenario)
 
+                consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
+                all_consumes.update(consumes)
+
                 if self.input_strings:
                     if host not in str_list:
                         str_list.append(host)
@@ -322,16 +337,22 @@ class EncarnoFilesGenerator(object):
                     if request.label not in str_list:
                         str_list.append(request.label)
 
+                    for val in consumes:
+                        if val not in str_list:
+                            str_list.append(val)
+
                     metadata = {
                         "plen": len(tcp_payload.encode('utf-8')),
                         "a": str_list.index(host) + 1,
-                        "l": str_list.index(request.label) + 1
+                        "l": str_list.index(request.label) + 1,
+                        "r": [str_list.index(x) + 1 for x in consumes],
                     }
                 else:
                     metadata = {
                         "plen": len(tcp_payload.encode('utf-8')),
                         "address": host,
                         "label": request.label,
+                        "replaces": consumes,
                     }
 
                 fds.write(json.dumps(metadata))  # metadata
@@ -349,7 +370,7 @@ class EncarnoFilesGenerator(object):
 
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
-        return str_list
+        return str_list, (all_extracts and all_consumes)
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)
