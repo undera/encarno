@@ -62,14 +62,18 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 	for name, outSpec := range extractors {
 		all := outSpec.Re.FindAllSubmatch(i.RespBytes, outSpec.MatchNo)
 
+		var val []byte
 		if len(all) <= 0 {
 			log.Debugf("Nothing has matched the regex '%s': %v", name, outSpec.String())
-			values[name] = placeholder
+			val = placeholder
 		} else if outSpec.MatchNo >= 0 {
-			values[name] = all[outSpec.MatchNo-1][outSpec.GroupNo]
+			val = all[outSpec.MatchNo-1][outSpec.GroupNo]
 		} else {
-			values[name] = all[rand.Intn(len(all))][outSpec.GroupNo]
+			val = all[rand.Intn(len(all))][outSpec.GroupNo]
 		}
+
+		values[name] = make([]byte, len(val))
+		copy(values[name], val)
 	}
 }
 
