@@ -28,9 +28,13 @@ type DummyNib struct {
 func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 	now := time.Now()
 	o := &OutputItem{
-		StartTime: now,
-		Status:    uint16((1 + now.Unix()%5) * 100),
-		Label:     "label#" + strconv.Itoa(int(now.Unix()%3)),
+		StartTime:      now,
+		Status:         uint16((1 + now.Unix()%5) * 100),
+		Label:          "label#" + strconv.Itoa(int(now.Unix()%3)),
+		ReqBytes:       item.Payload,
+		SentBytesCount: uint64(item.PayloadLen),
+		RespBytes:      item.Payload,
+		RespBytesCount: uint64(item.PayloadLen),
 	}
 
 	if item.StrIndex != nil {

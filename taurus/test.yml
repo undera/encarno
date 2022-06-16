@@ -15,6 +15,7 @@ scenarios:
     default-address: http://localhost:8070/
 
     variables:
+      address: 127.0.0.1:8070
       predefined: value
 
     #script: /tmp/1.in
@@ -30,8 +31,12 @@ scenarios:
           If-None-Match: '${etag}'
         assert:
           - 'HTTP/1.1 304 Not Modified'
+          - not: true
+            contains:
+            - 'HTTP/1.1 304 Not Modified'
 
-      - url: http://127.0.0.1:8070/
+
+      - url: http://${address}/
         method: POST
         body: "${date}"
 

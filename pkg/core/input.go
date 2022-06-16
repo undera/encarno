@@ -41,7 +41,8 @@ type PayloadItem struct {
 	ReplacesIdx []uint16 `json:"r"`
 	Replaces    []string `json:"replaces"`
 
-	RegexOut map[string]*ExtractRegex
+	RegexOutIdx []uint16 `json:"e"`
+	RegexOut    map[string]*ExtractRegex
 
 	StrIndex *StrIndex
 }
@@ -49,8 +50,9 @@ type PayloadItem struct {
 var regexCache = map[string]*regexp.Regexp{}
 
 func (i *PayloadItem) ReplaceValues(values ValMap) {
-	// TODO: only do it for selected Values
 	for name, val := range values {
+		i.ResolveStrings()
+
 		var re *regexp.Regexp
 		if r, ok := regexCache[name]; ok {
 			re = r
@@ -59,13 +61,20 @@ func (i *PayloadItem) ReplaceValues(values ValMap) {
 			regexCache[name] = re
 		}
 		i.Payload = re.ReplaceAll(i.Payload, val)
+		i.Label = re.ReplaceAllString(i.Label, string(val))
+		i.Address = re.ReplaceAllString(i.Address, string(val))
 	}
 }
 
 func (i *PayloadItem) ResolveStrings() {
 	if i.Address == "" && i.AddressIdx > 0 {
-		// resolve address index into string
 		i.Address = i.StrIndex.Get(i.AddressIdx)
+		i.AddressIdx = 0
+	}
+
+	if i.Label == "" && i.LabelIdx > 0 {
+		i.Label = i.StrIndex.Get(i.LabelIdx)
+		i.LabelIdx = 0
 	}
 }
 

@@ -58,11 +58,13 @@ func (i *OutputItem) EndWithError(err error) *OutputItem {
 }
 
 func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values map[string][]byte) {
+	placeholder := []byte("NOT_FOUND") // TODO: parameterize it
 	for name, outSpec := range extractors {
-		all := outSpec.Re.FindAllSubmatch(i.RespBytes, -1)
+		all := outSpec.Re.FindAllSubmatch(i.RespBytes, outSpec.MatchNo)
 
 		if len(all) <= 0 {
-			log.Warningf("Nothing has matched the regex '%s': %v", name, outSpec.String())
+			log.Debugf("Nothing has matched the regex '%s': %v", name, outSpec.String())
+			values[name] = placeholder
 		} else if outSpec.MatchNo >= 0 {
 			values[name] = all[outSpec.MatchNo][outSpec.GroupNo]
 		} else {

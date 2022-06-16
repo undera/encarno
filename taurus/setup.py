@@ -15,6 +15,7 @@ setup(
     packages=["encarno"],
     install_requires=[
         'bzt',
+        'pyyaml',
     ],
     package_data={'': ['*.json', '*.yml']},
     include_package_data=True,
