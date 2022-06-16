@@ -37,9 +37,7 @@ func (d DummyNib) Punch(item *PayloadItem) *OutputItem {
 		RespBytesCount: uint64(item.PayloadLen),
 	}
 
-	if item.StrIndex != nil {
-		o.LabelIdx = item.StrIndex.Idx(o.Label)
-	}
+	o.LabelIdx = 0
 
 	duration := time.Duration(now.Unix()%100) * time.Microsecond
 	time.Sleep(duration)

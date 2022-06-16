@@ -1,7 +1,7 @@
 ---
 execution:
   - executor: encarno
-    scenario: simple
+    scenario: dummy
     concurrency: 1
     throughput: 5
     #iterations: 1
@@ -10,6 +10,8 @@ execution:
     hold-for: 10s
 
 scenarios:
+  dummy:
+    protocol: dummy
   simple:
     protocol: http
     default-address: http://localhost:8070/
@@ -48,8 +50,8 @@ scenarios:
 
     trace-level: 0
 
-reporting:
-  - csvresults
+#reporting:
+#- csvresults
 
 services:
   - module: shellexec

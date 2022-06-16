@@ -194,7 +194,7 @@ func NewOutput(conf OutputConf) *Output {
 	}
 
 	if conf.StringsFile != "" {
-		out.strIndex = NewStringIndex(conf.StringsFile)
+		out.strIndex = NewStringIndex(conf.StringsFile, false)
 	}
 
 	if conf.LDJSONFile != "" {

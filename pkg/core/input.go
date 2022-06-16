@@ -107,7 +107,7 @@ func NewInput(config InputConf) InputChannel {
 
 	var strIndex *StrIndex
 	if config.StringsFile != "" {
-		strIndex = NewStringIndex(config.StringsFile)
+		strIndex = NewStringIndex(config.StringsFile, true)
 	}
 
 	ch := make(InputChannel)

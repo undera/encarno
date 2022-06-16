@@ -83,11 +83,11 @@ func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
 	res.Worker = uint32(w.Index)
 	res.ReqBytes = item.Payload
 
-	if item.Label != "" { // allow Nib to generate own label
+	if res.Label == "" { // allow Nib to generate own label
 		res.Label = item.Label
 	}
 
-	if item.LabelIdx != 0 { // allow Nib to generate own label index
+	if res.LabelIdx == 0 { // allow Nib to generate own label index
 		res.LabelIdx = item.LabelIdx
 	}
 
