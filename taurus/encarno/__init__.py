@@ -349,6 +349,7 @@ class EncarnoFilesGenerator(object):
         host, tcp_payload = self._build_request(request, scenario)
         consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
         consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
+        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
         all_consumes.update(consumes)
         extractors = request.config.get("extract-regexp")
         ext_tpls = []

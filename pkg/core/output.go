@@ -195,7 +195,7 @@ func NewOutput(conf OutputConf) *Output {
 
 	if conf.LDJSONFile != "" {
 		log.Infof("Opening LDJSON file for writing: %s", conf.LDJSONFile)
-		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -208,7 +208,7 @@ func NewOutput(conf OutputConf) *Output {
 
 	if conf.BinaryFile != "" {
 		log.Infof("Opening binary file for writing: %s", conf.BinaryFile)
-		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -222,7 +222,7 @@ func NewOutput(conf OutputConf) *Output {
 
 	if conf.ReqRespFile != "" {
 		log.Infof("Opening trace file for writing: %s", conf.ReqRespFile)
-		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}

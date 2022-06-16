@@ -56,7 +56,7 @@ func (i *PayloadItem) ReplaceValues(values ValMap) {
 
 		val, ok := values[name]
 		if !ok {
-			val = []byte("NOT_FOUND")
+			val = []byte("NO_VALUE")
 		}
 
 		var re *regexp.Regexp
@@ -189,7 +189,7 @@ func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 			re = r
 		} else {
 			re = regexp.MustCompile(sre)
-			regexCache[name] = re
+			regexCache[sre] = re
 		}
 
 		g, _ := strconv.Atoi(group)

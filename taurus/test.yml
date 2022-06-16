@@ -23,7 +23,7 @@ scenarios:
     requests:
       - url: /
         extract-regexp:
-          etag: 'ETag: "(.+)"'
+          etag: 'ETag: (".+")'
           date: 'Date: ([^\n]+)'
 
       - url: '/?param=${predefined}'
@@ -38,6 +38,7 @@ scenarios:
 
       - url: http://${address}/
         method: POST
+        label: tag-${etag}
         body: "${date}"
 
       # - http://[::1]:8070/

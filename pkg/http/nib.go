@@ -92,7 +92,9 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	}
 	result.Status = uint16(resp.StatusCode)
 
-	result.FirstByteTime = conn.FirstRead.Sub(begin)
+	if !conn.FirstRead.IsZero() {
+		result.FirstByteTime = conn.FirstRead.Sub(begin)
+	}
 
 	if len(item.RegexOut) > 0 {
 		conn.ReadRecordLimit = 0 // FIXME: this affects reused connections

@@ -57,7 +57,7 @@ func (r *BufferedConn) readLoop() {
 			break
 		}
 
-		if r.ReadLen == 0 {
+		if r.FirstRead.IsZero() {
 			r.FirstRead = time.Now()
 		}
 
@@ -125,6 +125,7 @@ func (r *BufferedConn) Close() {
 func (r *BufferedConn) Reset() {
 	r.ReadLen = 0
 	r.ReadRecorded.Truncate(0)
+	r.FirstRead = time.Time{}
 }
 
 type ConnChan = chan *BufferedConn
