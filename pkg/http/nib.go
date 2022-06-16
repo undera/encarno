@@ -6,6 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,8 +30,14 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 	return &outItem
 }
 
+var contentLengthRe = regexp.MustCompile(`(?m:\$\{:content-length:})`)
+
 func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, bool) {
-	hostHint, connClose := getHostAndConnHeaderValues(item.Payload)
+	hostHint, connClose, bodyLen := getHostAndConnHeaderValues(item.Payload)
+	if len(item.Replaces) > 0 {
+		item.Payload = contentLengthRe.ReplaceAll(item.Payload, []byte(strconv.Itoa(bodyLen)))
+	}
+
 	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	connected := time.Now()
@@ -55,13 +63,14 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 	return conn, connClose
 }
 
-func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
+func getHostAndConnHeaderValues(payload []byte) (host string, close bool, bodyLen int) {
 	nlSep := []byte{10}
 	colonSep := []byte{':'}
-	_, _, _ = bytes.Cut(payload, nlSep) // swallow req line
-	for {                               // read headers
+	_, payload, _ = bytes.Cut(payload, nlSep) // swallow req line
+	for {                                     // read headers
 		before, after, found := bytes.Cut(payload, nlSep)
-		if !found || len(after) < 2 { // minimal possible header is "x:"
+		payload = after
+		if !found || len(before) < 2 { // minimal possible header is "x:"
 			break
 		}
 
@@ -74,11 +83,10 @@ func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
 		if string(hname) == "Connection" || string(hname) == "connection" {
 			close = strings.TrimSpace(string(hval)) == "close"
 		}
-
-		// TODO if found both - stop looking
-
-		payload = after
 	}
+
+	bodyLen = len(payload)
+
 	return
 }
 

@@ -24,7 +24,7 @@ scenarios:
       - url: /
         extract-regexp:
           etag: 'ETag: (".+")'
-          date: 'Date: ([^$]+)'
+          date: 'Date: ([^\n]+)'
 
       - url: '/?param=${predefined}'
         headers:

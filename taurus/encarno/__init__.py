@@ -419,7 +419,10 @@ class EncarnoFilesGenerator(object):
             raise TaurusConfigError(msg % (type(request.body), request.body))
 
         if body:
-            headers.merge({"Content-Length": len(body)})
+            if re.findall(r'\$\{([A-Za-z]\w+)}', body):
+                headers.merge({"Content-Length": "${:content-length:}"})
+            else:
+                headers.merge({"Content-Length": len(body)})
 
         headers.merge(scenario.get_headers())
         headers.merge(request.headers)
