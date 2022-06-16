@@ -207,6 +207,7 @@ func NewOutput(conf OutputConf) *Output {
 		out.Outs = append(out.Outs, &LDJSONOut{
 			fd:     file,
 			writer: bufio.NewWriter(file),
+			mx:     new(sync.Mutex),
 		})
 	}
 
@@ -249,6 +250,7 @@ type SingleOut interface {
 type LDJSONOut struct {
 	writer *bufio.Writer
 	fd     *os.File
+	mx     *sync.Mutex
 }
 
 func (L *LDJSONOut) Push(item *OutputItem) {
@@ -260,6 +262,8 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 	data = append(data, 13) // \r\n
 	data = append(data, 10) // \n
 
+	L.mx.Lock()
+	defer L.mx.Unlock()
 	_, err = L.writer.Write(data)
 	if err != nil {
 		panic(err)
@@ -267,6 +271,8 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 }
 
 func (L *LDJSONOut) Close() {
+	L.mx.Lock()
+	defer L.mx.Unlock()
 	_ = L.writer.Flush()
 	_ = L.fd.Close()
 }
