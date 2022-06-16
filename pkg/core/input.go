@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -44,20 +45,25 @@ type PayloadItem struct {
 	RegexOutIdx []uint16 `json:"e"`
 	RegexOut    map[string]*ExtractRegex
 
-	StrIndex *StrIndex
+	StrIndex *StrIndex `json:"-"`
 }
 
 var regexCache = map[string]*regexp.Regexp{}
 
 func (i *PayloadItem) ReplaceValues(values ValMap) {
-	for name, val := range values {
+	for _, name := range i.Replaces {
 		i.ResolveStrings()
+
+		val, ok := values[name]
+		if !ok {
+			val = []byte("NOT_FOUND")
+		}
 
 		var re *regexp.Regexp
 		if r, ok := regexCache[name]; ok {
 			re = r
 		} else {
-			re = regexp.MustCompile("\\$\\{" + name + "}")
+			re = regexp.MustCompile(`(?m:\$\{` + name + "})")
 			regexCache[name] = re
 		}
 		i.Payload = re.ReplaceAll(i.Payload, val)
@@ -109,7 +115,7 @@ func NewInput(config InputConf) InputChannel {
 		cnt := 0
 		buf := make([]byte, 4096)
 		for {
-			item, err := ReadPayloadRecord(file, buf)
+			item, err := ReadPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
 				cnt += 1
 				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
@@ -126,8 +132,6 @@ func NewInput(config InputConf) InputChannel {
 				panic(err)
 			}
 
-			item.StrIndex = strIndex
-
 			ch <- item
 		}
 		log.Infof("Input exhausted")
@@ -136,7 +140,7 @@ func NewInput(config InputConf) InputChannel {
 	return ch
 }
 
-func ReadPayloadRecord(file io.ReadSeeker, buf []byte) (*PayloadItem, error) {
+func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {
@@ -159,11 +163,45 @@ func ReadPayloadRecord(file io.ReadSeeker, buf []byte) (*PayloadItem, error) {
 		return nil, errors.New(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
 	}
 
-	item := new(PayloadItem)
+	item := &PayloadItem{
+		StrIndex: index,
+		RegexOut: map[string]*ExtractRegex{},
+		Replaces: []string{},
+	}
 	err = json.Unmarshal(meta, item)
 	if err != nil {
 		panic(err)
 	}
+
+	for _, idx := range item.ReplacesIdx {
+		item.Replaces = append(item.Replaces, item.StrIndex.Get(idx))
+	}
+	item.ReplacesIdx = []uint16{}
+
+	for _, idx := range item.RegexOutIdx {
+		s := item.StrIndex.Get(idx)
+		name, s, _ := strings.Cut(s, " ")
+		match, s, _ := strings.Cut(s, " ")
+		group, sre, _ := strings.Cut(s, " ")
+
+		var re *regexp.Regexp
+		if r, ok := regexCache[sre]; ok {
+			re = r
+		} else {
+			re = regexp.MustCompile(sre)
+			regexCache[name] = re
+		}
+
+		g, _ := strconv.Atoi(group)
+		m, _ := strconv.Atoi(match)
+
+		item.RegexOut[name] = &ExtractRegex{
+			Re:      re,
+			GroupNo: uint(g),
+			MatchNo: m,
+		}
+	}
+	item.RegexOutIdx = []uint16{}
 
 	// seek payload start
 	o, err := file.Seek(-int64(len(rest)), 1)

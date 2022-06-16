@@ -367,6 +367,7 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 - unit tests and coverage
  
 - separate file for health status, with per-line flush?
+- fully binary input? is it worth it?
 
 ### Parking lot
 

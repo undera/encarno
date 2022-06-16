@@ -66,7 +66,7 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values m
 			log.Debugf("Nothing has matched the regex '%s': %v", name, outSpec.String())
 			values[name] = placeholder
 		} else if outSpec.MatchNo >= 0 {
-			values[name] = all[outSpec.MatchNo][outSpec.GroupNo]
+			values[name] = all[outSpec.MatchNo-1][outSpec.GroupNo]
 		} else {
 			values[name] = all[rand.Intn(len(all))][outSpec.GroupNo]
 		}
