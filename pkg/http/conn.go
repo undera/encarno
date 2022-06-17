@@ -37,7 +37,7 @@ type BufferedConn struct {
 func newBufferedConn(c net.Conn) *BufferedConn {
 	conn := &BufferedConn{
 		Conn:            c,
-		ReadRecordLimit: 1024 * 1024,
+		ReadRecordLimit: -1,
 		buf:             make([]byte, 4096),
 		readChunks:      make(chan []byte),
 		mx:              new(sync.Mutex),
@@ -57,7 +57,7 @@ func (r *BufferedConn) readLoop() {
 			break
 		}
 
-		if r.ReadLen == 0 {
+		if r.FirstRead.IsZero() {
 			r.FirstRead = time.Now()
 		}
 
@@ -125,6 +125,7 @@ func (r *BufferedConn) Close() {
 func (r *BufferedConn) Reset() {
 	r.ReadLen = 0
 	r.ReadRecorded.Truncate(0)
+	r.FirstRead = time.Time{}
 }
 
 type ConnChan = chan *BufferedConn

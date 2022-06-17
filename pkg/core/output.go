@@ -188,12 +188,12 @@ func NewOutput(conf OutputConf) *Output {
 	}
 
 	if conf.StringsFile != "" {
-		out.strIndex = NewStringIndex(conf.StringsFile)
+		out.strIndex = NewStringIndex(conf.StringsFile, false)
 	}
 
 	if conf.LDJSONFile != "" {
 		log.Infof("Opening LDJSON file for writing: %s", conf.LDJSONFile)
-		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.LDJSONFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -201,12 +201,13 @@ func NewOutput(conf OutputConf) *Output {
 		out.Outs = append(out.Outs, &LDJSONOut{
 			fd:     file,
 			writer: bufio.NewWriter(file),
+			mx:     new(sync.Mutex),
 		})
 	}
 
 	if conf.BinaryFile != "" {
 		log.Infof("Opening binary file for writing: %s", conf.BinaryFile)
-		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.BinaryFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -220,7 +221,7 @@ func NewOutput(conf OutputConf) *Output {
 
 	if conf.ReqRespFile != "" {
 		log.Infof("Opening trace file for writing: %s", conf.ReqRespFile)
-		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(conf.ReqRespFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			panic(err)
 		}
@@ -243,6 +244,7 @@ type SingleOut interface {
 type LDJSONOut struct {
 	writer *bufio.Writer
 	fd     *os.File
+	mx     *sync.Mutex
 }
 
 func (L *LDJSONOut) Push(item *OutputItem) {
@@ -254,6 +256,8 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 	data = append(data, 13) // \r\n
 	data = append(data, 10) // \n
 
+	L.mx.Lock()
+	defer L.mx.Unlock()
 	_, err = L.writer.Write(data)
 	if err != nil {
 		panic(err)
@@ -261,6 +265,8 @@ func (L *LDJSONOut) Push(item *OutputItem) {
 }
 
 func (L *LDJSONOut) Close() {
+	L.mx.Lock()
+	defer L.mx.Unlock()
 	_ = L.writer.Flush()
 	_ = L.fd.Close()
 }

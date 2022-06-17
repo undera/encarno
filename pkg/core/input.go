@@ -80,7 +80,7 @@ func NewInput(config InputConf) InputChannel {
 
 	var strIndex *StrIndex
 	if config.StringsFile != "" {
-		strIndex = NewStringIndex(config.StringsFile)
+		strIndex = NewStringIndex(config.StringsFile, true)
 	}
 
 	ch := make(InputChannel)
@@ -88,7 +88,7 @@ func NewInput(config InputConf) InputChannel {
 		cnt := 0
 		buf := make([]byte, 4096)
 		for {
-			item, err := ReadPayloadRecord(file, buf)
+			item, err := ReadPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
 				cnt += 1
 				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
@@ -105,8 +105,6 @@ func NewInput(config InputConf) InputChannel {
 				panic(err)
 			}
 
-			item.StrIndex = strIndex
-
 			ch <- item
 		}
 		log.Infof("Input exhausted")
@@ -115,7 +113,7 @@ func NewInput(config InputConf) InputChannel {
 	return ch
 }
 
-func ReadPayloadRecord(file io.ReadSeeker, buf []byte) (*PayloadItem, error) {
+func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {
@@ -138,7 +136,10 @@ func ReadPayloadRecord(file io.ReadSeeker, buf []byte) (*PayloadItem, error) {
 		return nil, errors.New(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
 	}
 
-	item := new(PayloadItem)
+	item := &PayloadItem{
+		StrIndex: index,
+		RegexOut: map[string]*ExtractRegex{},
+	}
 	err = json.Unmarshal(meta, item)
 	if err != nil {
 		panic(err)

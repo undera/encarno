@@ -3,7 +3,6 @@ package http
 import (
 	"encarno/pkg/core"
 	log "github.com/sirupsen/logrus"
-	"io"
 	"net/http"
 	"regexp"
 	"testing"
@@ -156,72 +155,4 @@ func TestTLSIssues(t *testing.T) {
 			t.FailNow()
 		}
 	}
-}
-
-func TestLoop(t *testing.T) {
-	//log.SetLevel(log.DebugLevel)
-
-	nib := Nib{
-		ConnPool: NewConnectionPool(100, 1*time.Second, core.TLSConf{}),
-	}
-
-	item := core.PayloadItem{
-		Address: hostname,
-		Payload: []byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"),
-	}
-
-	start := time.Now()
-	i := float64(0)
-	for ; i < 100000; i++ {
-		res := nib.Punch(&item)
-		if res.Error != nil {
-			t.Logf("Failed: %v", res.Error)
-			break
-		}
-		//t.Logf("Status: %d", res.Status)
-	}
-	elapsed := time.Now().Sub(start)
-	t.Logf("Iterations: %v", i)
-	t.Logf("Elapsed: %v", elapsed)
-	t.Logf("Avg: %v", elapsed.Seconds()/i)
-	t.Logf("Rate: %v", i/elapsed.Seconds())
-}
-
-func TestLoopNative(t *testing.T) {
-	return // was used to compare the performance
-	start := time.Now()
-	i := float64(0)
-	for ; i < 100000; i++ {
-		doreq(t)
-	}
-	elapsed := time.Now().Sub(start)
-	t.Logf("Iterations: %v", i)
-	t.Logf("Elapsed: %v", elapsed)
-	t.Logf("Avg: %v", elapsed.Seconds()/i)
-	t.Logf("Rate: %v", i/elapsed.Seconds())
-}
-
-var client = http.Client{
-	Timeout: 1000 * time.Second,
-	Transport: &http.Transport{
-		IdleConnTimeout: 1000 * time.Second,
-	},
-}
-
-func doreq(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://"+hostname+"/", nil)
-	if err != nil {
-		log.Fatalf("Error Occured. %+v", err)
-	}
-	//req.Header.Set("Connection", "close")
-	res, err := client.Do(req)
-	if err != nil {
-		t.Errorf("Failed: %v", err)
-		return
-	}
-	io.ReadAll(res.Body)
-	res.Body.Close()
-	_ = res
-	//t.Logf("Status: %d", res.StatusCode)
-	//time.Sleep(10 * time.Second)
 }

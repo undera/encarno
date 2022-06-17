@@ -14,10 +14,13 @@ type StrIndex struct {
 	mapping  map[string]uint16
 	mx       *sync.Mutex
 	fd       *os.File
+	writer   *bufio.Writer
+	readonly bool
 }
 
-func NewStringIndex(fname string) *StrIndex {
+func NewStringIndex(fname string, readonly bool) *StrIndex {
 	ret := StrIndex{
+		readonly: readonly,
 		filename: fname,
 		index:    []string{""},             // placeholder for zero index
 		mapping:  map[string]uint16{"": 0}, // reverse index
@@ -68,6 +71,10 @@ func (s *StrIndex) Idx(label string) uint16 {
 	if idx, ok := s.mapping[label]; ok {
 		return idx
 	} else {
+		if s.readonly {
+			panic("attempt to change a readonly index for " + label)
+		}
+
 		s.mx.Lock()
 		defer s.mx.Unlock()
 		if idx, ok := s.mapping[label]; ok { // repeat the attempt under mutex
@@ -78,7 +85,6 @@ func (s *StrIndex) Idx(label string) uint16 {
 		s.mapping[label] = idx
 
 		s.appendFile(label)
-
 		return idx
 	}
 }
@@ -92,10 +98,12 @@ func (s *StrIndex) appendFile(label string) {
 				panic(err)
 			}
 			s.fd = f
+			s.writer = bufio.NewWriter(s.fd)
 		}
 
-		if _, err := s.fd.WriteString(label + "\n"); err != nil {
+		if _, err := s.writer.WriteString(label + "\n"); err != nil {
 			panic(err)
 		}
+		_ = s.writer.Flush()
 	}
 }

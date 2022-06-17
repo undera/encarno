@@ -29,14 +29,21 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 }
 
 func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, bool) {
-	hostHint, connClose := getHostAndConnHeaderValues(item.Payload)
+	hostHint, connClose, _ := getHostAndConnHeaderValues(item.Payload)
 	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	connected := time.Now()
+
 	outItem.ConnectTime = connected.Sub(before)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil, connClose
+	}
+
+	if len(item.RegexOut) > 0 {
+		conn.ReadRecordLimit = 0
+	} else {
+		conn.ReadRecordLimit = 1024 * 1024
 	}
 
 	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
@@ -55,13 +62,14 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 	return conn, connClose
 }
 
-func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
+func getHostAndConnHeaderValues(payload []byte) (host string, close bool, bodyLen int) {
 	nlSep := []byte{10}
 	colonSep := []byte{':'}
-	_, _, _ = bytes.Cut(payload, nlSep) // swallow req line
-	for {                               // read headers
+	_, payload, _ = bytes.Cut(payload, nlSep) // swallow req line
+	for {                                     // read headers
 		before, after, found := bytes.Cut(payload, nlSep)
-		if !found || len(after) < 2 { // minimal possible header is "x:"
+		payload = after
+		if !found || len(before) < 2 { // minimal possible header is "x:"
 			break
 		}
 
@@ -74,11 +82,10 @@ func getHostAndConnHeaderValues(payload []byte) (host string, close bool) {
 		if string(hname) == "Connection" || string(hname) == "connection" {
 			close = strings.TrimSpace(string(hval)) == "close"
 		}
-
-		// TODO if found both - stop looking
-
-		payload = after
 	}
+
+	bodyLen = len(payload)
+
 	return
 }
 
@@ -92,10 +99,8 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	}
 	result.Status = uint16(resp.StatusCode)
 
-	result.FirstByteTime = conn.FirstRead.Sub(begin)
-
-	if len(item.RegexOut) > 0 {
-		conn.ReadRecordLimit = 0 // FIXME: this affects reused connections
+	if !conn.FirstRead.IsZero() {
+		result.FirstByteTime = conn.FirstRead.Sub(begin)
 	}
 
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
