@@ -105,7 +105,9 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 	}
 
 	if len(item.RegexOut) > 0 {
-		conn.ReadRecordLimit = 0 // FIXME: this affects reused connections
+		conn.ReadRecordLimit = 0
+	} else {
+		conn.ReadRecordLimit = 1024 * 1024
 	}
 
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {

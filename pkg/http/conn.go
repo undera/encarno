@@ -37,7 +37,7 @@ type BufferedConn struct {
 func newBufferedConn(c net.Conn) *BufferedConn {
 	conn := &BufferedConn{
 		Conn:            c,
-		ReadRecordLimit: 1024 * 1024,
+		ReadRecordLimit: -1,
 		buf:             make([]byte, 4096),
 		readChunks:      make(chan []byte),
 		mx:              new(sync.Mutex),
