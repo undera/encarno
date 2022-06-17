@@ -8,7 +8,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	cfg := "/media/BIG/bzt-artifacts/2022-06-16_23-32-24.041754/encarno_cfg.yaml"
+	cfg := "/media/BIG/bzt-artifacts/some/encarno_cfg.yaml"
 	if _, err := os.Stat(cfg); err == nil {
 		config := LoadConfig(cfg)
 		Run(config)
