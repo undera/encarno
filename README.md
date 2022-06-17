@@ -5,7 +5,7 @@ roughly "[I impersonate](#history)".
 
 ## Key Features
 
-- HTTP 1.1 protocol testing, TLS supported
+- HTTP 1.1 protocol testing, TLS supported, IPv6 supported
 - flexible load profiles in ["open" and "closed" workload](https://www.google.com/search?q=open+closed+workload) modes
 - accurate load generating up to tens of thousands hits/s
 - precise result measurements of nanosecond resolution
@@ -218,14 +218,6 @@ Some level examples:
 - `0` - dump all the traffic
 - `1000` - don't write trace file
 
-### Encarno Output Format
-
-It is possible to switch Encarno from default _binary+strings_ format of output file, into single human-readable LDSON file. It is done via special option:
-```yaml
-module:
-  encarno:
-    output-format: ldjson  # by default, it's "bin"
-```
 
 ### Sidebar Widget
 
@@ -313,6 +305,13 @@ TODO
 binary, ldjson, reqresp
 special code 999 for errors
 
+It is possible to switch Encarno from default _binary+strings_ format of output file, into single human-readable LDSON file. It is done via special option:
+```yaml
+module:
+  encarno:
+    output-format: ldjson  # by default, it's "bin"
+```
+
 
 ### Log file health meanings
 TODO
@@ -370,16 +369,11 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 - unit tests and coverage
  
 - separate file for health status, with per-line flush?
+- fully binary input? is it worth it?
 
 ### Parking lot
 
 - auto-USL workload
-- option to inject into k8s
-    - inject all the files
-    - options to choose NS
-    - https://github.com/kubernetes-client/python
-    - Download artifacts
-      back https://stackoverflow.com/questions/59703610/copy-file-from-pod-to-host-by-using-kubernetes-python-client
 - limit len of auto-label for long GET urls
 - udp protocol nib
 - Go plugins used for nib

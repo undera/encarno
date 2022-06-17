@@ -8,7 +8,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	cfg := "/media/BIG/bzt-artifacts/2022-06-15_15-48-34.595082/encarno_cfg.yaml"
+	cfg := "/media/BIG/bzt-artifacts/some/encarno_cfg.yaml"
 	if _, err := os.Stat(cfg); err == nil {
 		config := LoadConfig(cfg)
 		Run(config)
@@ -17,7 +17,7 @@ func TestConfig(t *testing.T) {
 
 func TestOpen(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
-	index := core.NewStringIndex("")
+	index := core.NewStringIndex("", false)
 
 	ichan := make(core.InputChannel)
 	go func() {
@@ -55,7 +55,7 @@ func TestClosed(t *testing.T) {
 	}
 	_ = resultFile.Close()
 
-	index := core.NewStringIndex("")
+	index := core.NewStringIndex("", false)
 
 	ichan := make(core.InputChannel)
 	go func() {

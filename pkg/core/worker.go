@@ -81,20 +81,20 @@ func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
 	res := w.Nib.Punch(item)
 	res.StartTS = uint32(res.StartTime.Unix()) // TODO: use nanoseconds
 	res.Worker = uint32(w.Index)
-	res.ExtractValues(item.RegexOut, w.Values)
 	res.ReqBytes = item.Payload
 
-	if item.Label != "" { // allow Nib to generate own label
+	if res.Label == "" { // allow Nib to generate own label
 		res.Label = item.Label
 	}
 
-	if item.LabelIdx != 0 { // allow Nib to generate own label index
+	if res.LabelIdx == 0 { // allow Nib to generate own label index
 		res.LabelIdx = item.LabelIdx
 	}
 
 	res.Concurrency = uint32(w.Status.GetBusy())
-	w.Output.Push(res)
 	w.Status.DecBusy()
+	res.ExtractValues(item.RegexOut, w.Values)
+	w.Output.Push(res)
 	return res
 }
 

@@ -37,9 +37,6 @@ jobs:
           file: ./coverage.txt
           flags: unittests
 
-      - name: Build the Docker image
-        run: docker build . --file Dockerfile --tag encarne:$(date +%s)
-
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 5
