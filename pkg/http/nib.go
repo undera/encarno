@@ -41,10 +41,17 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	connected := time.Now()
+
 	outItem.ConnectTime = connected.Sub(before)
 	if err != nil {
 		outItem.EndWithError(err)
 		return nil, connClose
+	}
+
+	if len(item.RegexOut) > 0 {
+		conn.ReadRecordLimit = 0
+	} else {
+		conn.ReadRecordLimit = 1024 * 1024
 	}
 
 	if err := conn.SetDeadline(time.Now().Add(n.ConnPool.Timeout)); err != nil {
@@ -102,12 +109,6 @@ func (n *Nib) readResponse(item *core.PayloadItem, conn *BufferedConn, result *c
 
 	if !conn.FirstRead.IsZero() {
 		result.FirstByteTime = conn.FirstRead.Sub(begin)
-	}
-
-	if len(item.RegexOut) > 0 {
-		conn.ReadRecordLimit = 0
-	} else {
-		conn.ReadRecordLimit = 1024 * 1024
 	}
 
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
