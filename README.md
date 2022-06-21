@@ -337,7 +337,7 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 ## Changelog
 
-### 0.4 -- upcoming
+### 0.4 -- 21 jun 2022
 - binary output writer&reader, including strings externalization, helper tools to translate into human-readable
 - fixes for ipv6, removed internal round-robin cache for DNS for now
 
