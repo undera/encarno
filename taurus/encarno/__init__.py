@@ -351,7 +351,7 @@ class EncarnoFilesGenerator(object):
         consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
         consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
         all_consumes.update(consumes)
-        extractors = request.config.get("extract-regexp")
+        extractors = request.config.get("extract-regexp", {})
         ext_tpls = []
         for varname in extractors:
             cfg = ensure_is_dict(extractors, varname, "regexp")

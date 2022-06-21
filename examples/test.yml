@@ -1,3 +1,4 @@
+# using this file in development
 ---
 execution:
   - executor: encarno
@@ -20,8 +21,6 @@ scenarios:
       address: 127.0.0.1:8070
       predefined: value
 
-    #script: /tmp/1.in
-    #requests: taurus/urls.txt
     requests:
       - url: /
         extract-regexp:

@@ -94,6 +94,11 @@ func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
 }
 
+func (r *ExtractRegex) UnmarshalJSON([]byte) error {
+
+	return nil
+}
+
 func NewInput(config InputConf) InputChannel {
 	if config.Predefined != nil {
 		return config.Predefined
