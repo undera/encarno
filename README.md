@@ -10,7 +10,7 @@ roughly "[I impersonate](#history)".
 - accurate load generating up to tens of thousands hits/s
 - precise result measurements of nanosecond resolution
 - efficient and low overhead (written in Go)
-- minimalistic scripting, via regex extracts and asserts (TODO: implement it)
+- minimalistic scripting, via regex extracts and asserts (PR #11 implements it)
 
 
 ## Usage as Taurus Module
@@ -340,7 +340,7 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 ### 0.5 -- upcoming
 - regular expression evaluation and extractions
 
-### 0.4 -- upcoming
+### 0.4 -- 21 jun 2022
 - binary output writer&reader, including strings externalization, helper tools to translate into human-readable
 - fixes for ipv6, removed internal round-robin cache for DNS for now
 
@@ -381,3 +381,5 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 
 Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
+
+<p align="center"><sup><sub><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/pt.svg" height="8"> Made in Portugal</sub></sup></p>
