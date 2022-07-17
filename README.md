@@ -10,7 +10,7 @@ roughly "[I impersonate](#history)".
 - accurate load generating up to tens of thousands hits/s
 - precise result measurements of nanosecond resolution
 - efficient and low overhead (written in Go)
-- minimalistic scripting, via regex extracts and asserts (TODO: implement it)
+- minimalistic scripting, via regex extracts and asserts (PR #11 implements it)
 
 
 ## Usage as Taurus Module
