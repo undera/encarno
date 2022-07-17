@@ -381,4 +381,4 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
 
-<sup><sub><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/pt.svg" height="8"> Made in Portugal</sub></sup>
+<p align="center"><sup><sub><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/pt.svg" height="8"> Made in Portugal</sub></sup></p>
