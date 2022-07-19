@@ -56,7 +56,7 @@ func (i *PayloadItem) ReplaceValues(values ValMap) {
 
 		val, ok := values[name]
 		if !ok {
-			val = []byte("NO_VALUE")
+			val = []byte("NO_VALUE") // TODO: document that it works like that
 		}
 
 		var re *regexp.Regexp
@@ -95,7 +95,7 @@ func (r *ExtractRegex) String() string {
 }
 
 func (r *ExtractRegex) UnmarshalJSON([]byte) error {
-
+	// FIXME: implement
 	return nil
 }
 
