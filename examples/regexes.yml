@@ -34,6 +34,8 @@ scenarios:
       - url: http://${address}/
         method: POST
         label: tag-${etag}
+        headers:
+          x-custom-length: "${:content-length:}"
         body: "${date}"
 
     trace-level: 0

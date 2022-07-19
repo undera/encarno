@@ -78,6 +78,23 @@ func TestOne(t *testing.T) {
 	}
 }
 
+func TestDynamicLenVariable(t *testing.T) {
+	nib := Nib{
+		ConnPool: NewConnectionPool(100, 1*time.Second, core.TLSConf{}),
+	}
+
+	inp := core.PayloadItem{
+		Address:  hostname,
+		Payload:  []byte("POST /?${:content-length:} HTTP/1.1\r\n\r\nbody"),
+		Replaces: []string{"var"},
+	}
+	res := nib.Punch(&inp)
+	_ = res
+	if string(inp.Payload) != "POST /?4 HTTP/1.1\r\n\r\nbody" {
+		t.Errorf("Wrong payload: %s", inp.Payload)
+	}
+}
+
 func TestConnClose(t *testing.T) {
 	//log.SetLevel(log.DebugLevel)
 
@@ -141,6 +158,7 @@ func TestTLSIssues(t *testing.T) {
 	}
 
 	items := []Item{
+		item,
 		item,
 	}
 
