@@ -1,0 +1,40 @@
+---
+execution:
+  - executor: encarno
+    scenario: regexes
+    concurrency: 1
+    throughput: 1
+    hold-for: 60s
+
+scenarios:
+  regexes:
+    protocol: http
+    default-address: http://localhost:8070/
+
+    variables:
+      address: 127.0.0.1:8070
+      predefined: value
+
+    requests:
+      - url: /
+        extract-regexp:
+          etag: 'ETag: (".+")'
+          date: 'Date: ([^\n]+)'
+
+      - url: '/?param=${predefined}'
+        headers:
+          If-None-Match: '${etag}'
+        assert:
+          - 'HTTP/1.1 304 Not Modified'
+          - not: true
+            contains:
+              - 'HTTP/1.1 304 Not Modified'
+
+
+      - url: http://${address}/
+        method: POST
+        label: tag-${etag}
+        body: "${date}"
+
+    trace-level: 0
+
