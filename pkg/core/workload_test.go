@@ -5,7 +5,9 @@ import (
 )
 
 func TestBaseWorkload(t *testing.T) {
-	var nm NibMaker
+	var nm NibMaker = func() Nib {
+		return nil
+	}
 	var out *Output
 	iconf := InputConf{Predefined: make(InputChannel)}
 	wconf := WorkerConf{
@@ -15,5 +17,8 @@ func TestBaseWorkload(t *testing.T) {
 	}
 	status := &Status{}
 	wl := NewBaseWorkload(nm, out, iconf, wconf, status)
-	_ = wl
+	wl.SpawnWorker(make(ScheduleChannel))
+	if len(wl.Workers) != 1 {
+		t.Errorf("No worker spawned")
+	}
 }
