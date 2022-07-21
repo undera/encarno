@@ -6,6 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,8 +30,14 @@ func (n *Nib) Punch(item *core.PayloadItem) *core.OutputItem {
 	return &outItem
 }
 
+var contentLengthRe = regexp.MustCompile(`(?m:\$\{:content-length:})`)
+
 func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*BufferedConn, bool) {
-	hostHint, connClose, _ := getHostAndConnHeaderValues(item.Payload)
+	hostHint, connClose, bodyLen := getHostAndConnHeaderValues(item.Payload)
+	if len(item.Replaces) > 0 {
+		item.Payload = contentLengthRe.ReplaceAll(item.Payload, []byte(strconv.Itoa(bodyLen)))
+	}
+
 	before := time.Now()
 	conn, err := n.ConnPool.Get(item.Address, hostHint)
 	connected := time.Now()

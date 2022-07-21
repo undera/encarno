@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,7 @@ type InputConf struct {
 
 type InputChannel chan *PayloadItem
 type ScheduleChannel chan time.Duration
+type ValMap = map[string][]byte
 
 type PayloadItem struct {
 	LabelIdx uint16 `json:"l"`
@@ -37,23 +39,48 @@ type PayloadItem struct {
 	PayloadLen int `json:"plen"`
 	Payload    []byte
 
-	RegexOut map[string]*ExtractRegex
+	ReplacesIdx []uint16 `json:"r"`
+	Replaces    []string `json:"replaces"`
 
-	StrIndex *StrIndex
+	RegexOutIdx []uint16 `json:"e"`
+	RegexOut    map[string]*ExtractRegex
+
+	StrIndex *StrIndex `json:"-"`
 }
 
-func (i *PayloadItem) ReplaceValues(values map[string][]byte) {
-	// TODO: only do it for selected Values
-	for name, val := range values {
-		re := regexp.MustCompile("\\$\\{" + name + "}")
+var regexCache = map[string]*regexp.Regexp{}
+
+func (i *PayloadItem) ReplaceValues(values ValMap) {
+	for _, name := range i.Replaces {
+		i.ResolveStrings()
+
+		val, ok := values[name]
+		if !ok {
+			val = []byte("NO_VALUE") // TODO: document that it works like that
+		}
+
+		var re *regexp.Regexp
+		if r, ok := regexCache[name]; ok {
+			re = r
+		} else {
+			re = regexp.MustCompile(`(?m:\$\{` + name + "})")
+			regexCache[name] = re
+		}
 		i.Payload = re.ReplaceAll(i.Payload, val)
+		i.Label = re.ReplaceAllString(i.Label, string(val))
+		i.Address = re.ReplaceAllString(i.Address, string(val))
 	}
 }
 
 func (i *PayloadItem) ResolveStrings() {
 	if i.Address == "" && i.AddressIdx > 0 {
-		// resolve address index into string
 		i.Address = i.StrIndex.Get(i.AddressIdx)
+		i.AddressIdx = 0
+	}
+
+	if i.Label == "" && i.LabelIdx > 0 {
+		i.Label = i.StrIndex.Get(i.LabelIdx)
+		i.LabelIdx = 0
 	}
 }
 
@@ -65,6 +92,11 @@ type ExtractRegex struct {
 
 func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
+}
+
+func (r *ExtractRegex) UnmarshalJSON([]byte) error {
+	// FIXME: implement
+	return nil
 }
 
 func NewInput(config InputConf) InputChannel {
@@ -88,7 +120,7 @@ func NewInput(config InputConf) InputChannel {
 		cnt := 0
 		buf := make([]byte, 4096)
 		for {
-			item, err := ReadPayloadRecord(file, buf, strIndex)
+			item, err := readPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
 				cnt += 1
 				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
@@ -113,7 +145,7 @@ func NewInput(config InputConf) InputChannel {
 	return ch
 }
 
-func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
+func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {
@@ -139,11 +171,42 @@ func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 	item := &PayloadItem{
 		StrIndex: index,
 		RegexOut: map[string]*ExtractRegex{},
+		Replaces: []string{},
 	}
 	err = json.Unmarshal(meta, item)
 	if err != nil {
 		panic(err)
 	}
+
+	for _, idx := range item.ReplacesIdx {
+		item.Replaces = append(item.Replaces, item.StrIndex.Get(idx))
+	}
+	item.ReplacesIdx = []uint16{}
+
+	for _, idx := range item.RegexOutIdx {
+		s := item.StrIndex.Get(idx)
+		name, s, _ := strings.Cut(s, " ")
+		match, s, _ := strings.Cut(s, " ")
+		group, sre, _ := strings.Cut(s, " ")
+
+		var re *regexp.Regexp
+		if r, ok := regexCache[sre]; ok {
+			re = r
+		} else {
+			re = regexp.MustCompile(sre)
+			regexCache[sre] = re
+		}
+
+		g, _ := strconv.Atoi(group)
+		m, _ := strconv.Atoi(match)
+
+		item.RegexOut[name] = &ExtractRegex{
+			Re:      re,
+			GroupNo: uint(g),
+			MatchNo: m,
+		}
+	}
+	item.RegexOutIdx = []uint16{}
 
 	// seek payload start
 	o, err := file.Seek(-int64(len(rest)), 1)

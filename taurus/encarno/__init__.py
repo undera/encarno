@@ -3,6 +3,7 @@ import json
 import logging
 import os.path
 import platform
+import re
 import struct
 import traceback
 from json import JSONDecodeError
@@ -16,7 +17,7 @@ from bzt.modules import ExecutorWidget
 from bzt.modules.aggregator import ResultsReader, ConsolidatingAggregator
 from bzt.requests_model import HTTPRequest
 from bzt.utils import RequiredTool, FileReader, shutdown_process, BetterDict, dehumanize_time, is_windows, is_mac, \
-    ProgressBarContext, ExceptionalDownloader
+    ProgressBarContext, ExceptionalDownloader, ensure_is_dict
 from bzt.utils import get_full_path, CALL_PROBLEMS
 
 
@@ -35,8 +36,8 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
         self.stderr = open(self.engine.create_artifact("encarno", ".err"), 'w')
 
         self.generator = EncarnoFilesGenerator(self, self.log)
-        self.generator.generate_payload(self.get_scenario())
-        self.generator.generate_config(self.get_scenario(), self.get_load())
+        use_regex = self.generator.generate_payload(self.get_scenario())
+        self.generator.generate_config(self.get_scenario(), self.get_load(), use_regex)
 
         self.reader = self.generator.get_results_reader()
         if isinstance(self.engine.aggregator, ConsolidatingAggregator):
@@ -202,7 +203,7 @@ class EncarnoFilesGenerator(object):
         self.execution = executor.execution
         self.payload_file = None
 
-    def generate_config(self, scenario, load):
+    def generate_config(self, scenario, load, use_regex):
         self.stats_file = self.engine.create_artifact("encarno_health", ".ldjson")
         timeout = dehumanize_time(scenario.get("timeout", "10s"))
 
@@ -218,6 +219,7 @@ class EncarnoFilesGenerator(object):
                 "payloadfile": self.payload_file,
                 "stringsfile": self.input_strings if self.input_strings else "",
                 "iterationlimit": load.iterations,
+                "enableregexes": bool(use_regex),
             },
             "output": {
                 "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",
@@ -227,6 +229,7 @@ class EncarnoFilesGenerator(object):
                 "mode": "open" if load.throughput else "closed",
                 "workloadschedule": self._translate_load(load),
                 "maxworkers": load.concurrency,
+                "values": scenario.get("variables", {}),
             }
         }
 
@@ -283,22 +286,32 @@ class EncarnoFilesGenerator(object):
 
     def generate_payload(self, scenario: bzt.engine.Scenario):
         self.payload_file = self.executor.get_script_path()
+        uses_regex = scenario.get("enable-regex", None)
 
         if not self.payload_file:  # generation from requests
             self.payload_file = self.engine.create_artifact("encarno", '.inp')
             if self.settings.get("index-input-strings", True):
                 self.input_strings = self.engine.create_artifact("encarno", '.istr')
             self.log.info("Generating payload file: %s", self.payload_file)
-            str_list = self._generate_payload_inner(scenario)  # raises if there is no requests
+            str_list, found_regex = self._generate_payload_inner(scenario)  # raises if there is no requests
+            uses_regex = found_regex if uses_regex is None else uses_regex
 
             if self.input_strings:
                 with open(self.input_strings, 'w') as fp:
                     fp.writelines(x + "\n" for x in str_list)
+
         else:
             self.input_strings = scenario.get("input-strings")
 
+        return uses_regex
+
     def _generate_payload_inner(self, scenario):
         str_list = []
+        all_consumes = set()
+        all_extracts = set()
+
+        all_extracts.update(scenario.get("variables", {}).keys())
+
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
             requests = self._text_file_reader(req_val, scenario)
@@ -313,26 +326,7 @@ class EncarnoFilesGenerator(object):
                     self.log.warning(msg, request.NAME)
                     continue
 
-                host, tcp_payload = self._build_request(request, scenario)
-
-                if self.input_strings:
-                    if host not in str_list:
-                        str_list.append(host)
-
-                    if request.label not in str_list:
-                        str_list.append(request.label)
-
-                    metadata = {
-                        "plen": len(tcp_payload.encode('utf-8')),
-                        "a": str_list.index(host) + 1,
-                        "l": str_list.index(request.label) + 1
-                    }
-                else:
-                    metadata = {
-                        "plen": len(tcp_payload.encode('utf-8')),
-                        "address": host,
-                        "label": request.label,
-                    }
+                metadata, tcp_payload = self._convert_request(all_consumes, request, scenario, str_list)
 
                 fds.write(json.dumps(metadata))  # metadata
                 fds.write("\r\n")  # sep
@@ -349,7 +343,63 @@ class EncarnoFilesGenerator(object):
 
             raise TaurusInternalException("No requests were generated, check your 'requests' section presence")
 
-        return str_list
+        return str_list, bool(all_extracts and all_consumes)
+
+    def _convert_request(self, all_consumes, request, scenario, str_list):
+        host, tcp_payload = self._build_request(request, scenario)
+        consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
+        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
+        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
+        all_consumes.update(consumes)
+        extractors = request.config.get("extract-regexp", {})
+        ext_tpls = []
+        for varname in extractors:
+            cfg = ensure_is_dict(extractors, varname, "regexp")
+            data = (varname, cfg.get('match-no', 1), cfg.get('template', 1), cfg['regexp'])
+            ext_tpls.append("%s %d %d %s" % data)
+
+        if self.input_strings:
+            if host not in str_list:
+                str_list.append(host)
+
+            if request.label not in str_list:
+                str_list.append(request.label)
+
+            for val in consumes:
+                if val not in str_list:
+                    str_list.append(val)
+
+            for val in ext_tpls:
+                if val not in str_list:
+                    str_list.append(val)
+
+            metadata = {
+                "plen": len(tcp_payload.encode('utf-8')),
+                "a": str_list.index(host) + 1,
+                "l": str_list.index(request.label) + 1,
+            }
+
+            if consumes:
+                metadata["r"] = [str_list.index(x) + 1 for x in consumes]
+
+            if ext_tpls:
+                metadata["e"] = [str_list.index(x) + 1 for x in ext_tpls]
+        else:
+            metadata = {
+                "plen": len(tcp_payload.encode('utf-8')),
+                "address": host,
+                "label": request.label,
+                "replaces": consumes,
+                "extracts": ext_tpls,
+            }
+
+            if consumes:
+                metadata["replaces"] = consumes
+
+            if ext_tpls:
+                metadata["extracts"] = ext_tpls
+
+        return metadata, tcp_payload
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)
@@ -369,7 +419,10 @@ class EncarnoFilesGenerator(object):
             raise TaurusConfigError(msg % (type(request.body), request.body))
 
         if body:
-            headers.merge({"Content-Length": len(body)})
+            if re.findall(r'\$\{([A-Za-z]\w+)}', body):
+                headers.merge({"Content-Length": "${:content-length:}"})
+            else:
+                headers.merge({"Content-Length": len(body)})
 
         headers.merge(scenario.get_headers())
         headers.merge(request.headers)

@@ -3,6 +3,7 @@ package core
 import (
 	"io"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -17,8 +18,36 @@ func TestOutput(t *testing.T) {
 	}
 	out := NewOutput(cfg)
 	out.Start(cfg)
-	item := OutputItem{Label: "newlabel"}
+	item := OutputItem{Label: "newlabel", RespBytes: []byte("test 123")}
 	item.EndWithError(io.EOF)
+
+	vals := ValMap{}
+	extrs := map[string]*ExtractRegex{
+		"var0": {
+			Re: regexp.MustCompile("not found"),
+		},
+		"var1": {
+			Re:      regexp.MustCompile("\\d+"),
+			GroupNo: 0,
+			MatchNo: -1,
+		},
+		"var2": {
+			Re:      regexp.MustCompile("\\d+"),
+			GroupNo: 0,
+			MatchNo: 0,
+		},
+	}
+	item.ExtractValues(extrs, vals)
+	if string(vals["var0"]) != "NOT_FOUND" {
+		t.Errorf("No var0")
+	}
+	if string(vals["var1"]) != "123" {
+		t.Errorf("No var1")
+	}
+	if string(vals["var2"]) != "123" {
+		t.Errorf("No var2")
+	}
+
 	out.Push(&item)
 	time.Sleep(1 * time.Second)
 	out.Close()

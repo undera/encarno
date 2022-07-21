@@ -57,17 +57,28 @@ func (i *OutputItem) EndWithError(err error) *OutputItem {
 	return i
 }
 
-func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values map[string][]byte) {
+func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values ValMap) {
+	placeholder := []byte("NOT_FOUND") // TODO: parameterize it
 	for name, outSpec := range extractors {
-		all := outSpec.Re.FindAllSubmatch(i.RespBytes, -1)
-
-		if len(all) <= 0 {
-			log.Warningf("Nothing has matched the regex '%s': %v", name, outSpec.String())
-		} else if outSpec.MatchNo >= 0 {
-			values[name] = all[outSpec.MatchNo][outSpec.GroupNo]
-		} else {
-			values[name] = all[rand.Intn(len(all))][outSpec.GroupNo]
+		limit := outSpec.MatchNo + 1
+		if outSpec.MatchNo < 0 {
+			limit = outSpec.MatchNo
 		}
+
+		all := outSpec.Re.FindAllSubmatch(i.RespBytes, limit)
+
+		var val []byte
+		if len(all) <= 0 {
+			log.Debugf("Nothing has matched the regex '%s': %v", name, outSpec.String())
+			val = placeholder
+		} else if outSpec.MatchNo >= 0 {
+			val = all[outSpec.MatchNo][outSpec.GroupNo]
+		} else {
+			val = all[rand.Intn(len(all))][outSpec.GroupNo]
+		}
+
+		values[name] = make([]byte, len(val))
+		copy(values[name], val)
 	}
 }
 

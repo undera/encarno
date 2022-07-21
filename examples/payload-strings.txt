@@ -1,0 +1,12 @@
+{"plen": 53, "address": "${address}", "label": "/", "replaces": ["address"], "RegexOut": {"etag":{"Re": "ETag: (\".+\")", "GroupNo": 1, "MatchNo": -1}} }
+GET / HTTP/1.1
+Host: localhost:8070
+X-Marker: value
+
+
+{"plen": 76, "address": "http://localhost:8070", "label": "should cache", "replaces": ["etag"]}
+GET / HTTP/1.1
+Host: localhost:8070
+X-Marker: value
+If-None-Match: ${etag}
+
