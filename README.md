@@ -265,6 +265,7 @@ input:
     payloadfile: "" # path to payload input file, mandatory
     iterationlimit: 0 # if above zero, limits number of times the payload file is looped over
     stringsfile: "" # if specified, contains string index for payload file
+    enableregexes: false # enables regex related processing
 output:
     ldjsonfile: "" # optional, path to results file in LDJSON format
     reqrespfile: "" # optional, path to detailed trace file

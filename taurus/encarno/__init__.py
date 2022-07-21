@@ -219,7 +219,7 @@ class EncarnoFilesGenerator(object):
                 "payloadfile": self.payload_file,
                 "stringsfile": self.input_strings if self.input_strings else "",
                 "iterationlimit": load.iterations,
-                "enableregexes": use_regex,
+                "enableregexes": bool(use_regex),
             },
             "output": {
                 "reqrespfile": self.engine.create_artifact("encarno_trace", ".txt") if trace_level < 1000 else "",

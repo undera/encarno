@@ -34,7 +34,7 @@ func TestReadPayloadRecord(t *testing.T) {
 	for item := range ch {
 		items = append(items, item)
 	}
-	
+
 	if len(items) != 4 {
 		t.Errorf("Wrong items len: %d", len(items))
 	}
