@@ -359,9 +359,8 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 ## Changelog
 
 ### 0.5 -- upcoming
-- regular expression evaluation and extractions
+- regular expression evaluation, extractions and assertions
 
-- regex assertions
 - make sure custom payload files work fine
 - add external payload indexed example
 
