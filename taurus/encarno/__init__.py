@@ -347,16 +347,9 @@ class EncarnoFilesGenerator(object):
 
     def _convert_request(self, all_consumes, request, scenario, str_list):
         host, tcp_payload = self._build_request(request, scenario)
-        consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
-        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
-        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
-        all_consumes.update(consumes)
-        extractors = request.config.get("extract-regexp", {})
-        ext_tpls = []
-        for varname in extractors:
-            cfg = ensure_is_dict(extractors, varname, "regexp")
-            data = (varname, cfg.get('match-no', 1), cfg.get('template', 1), cfg['regexp'])
-            ext_tpls.append("%s %d %d %s" % data)
+        consumes = self._get_consumers(all_consumes, host, request, tcp_payload)
+        ext_tpls = self._get_extractors(request)
+        asserts = self._get_asserts(request)
 
         if self.input_strings:
             if host not in str_list:
@@ -373,6 +366,10 @@ class EncarnoFilesGenerator(object):
                 if val not in str_list:
                     str_list.append(val)
 
+            for val in asserts:
+                if val["re"] not in str_list:
+                    str_list.append(val["re"])
+
             metadata = {
                 "plen": len(tcp_payload.encode('utf-8')),
                 "a": str_list.index(host) + 1,
@@ -384,13 +381,19 @@ class EncarnoFilesGenerator(object):
 
             if ext_tpls:
                 metadata["e"] = [str_list.index(x) + 1 for x in ext_tpls]
+
+            if asserts:
+                metadata["c"] = []
+                for x in asserts:
+                    item = {"r": str_list.index(x["re"])}
+                    if x.get("invert"):
+                        item["n"] = True
+                    metadata["c"].append(item)
         else:
             metadata = {
                 "plen": len(tcp_payload.encode('utf-8')),
                 "address": host,
                 "label": request.label,
-                "replaces": consumes,
-                "extracts": ext_tpls,
             }
 
             if consumes:
@@ -399,7 +402,41 @@ class EncarnoFilesGenerator(object):
             if ext_tpls:
                 metadata["extracts"] = ext_tpls
 
+            if asserts:
+                metadata["asserts"] = asserts
+
         return metadata, tcp_payload
+
+    def _get_consumers(self, all_consumes, host, request, tcp_payload):
+        consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
+        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
+        consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
+        all_consumes.update(consumes)
+        return consumes
+
+    def _get_extractors(self, request):
+        extractors = request.config.get("extract-regexp", {})
+        ext_tpls = []
+        for varname in extractors:
+            cfg = ensure_is_dict(extractors, varname, "regexp")
+            data = (varname, cfg.get('match-no', 0), cfg.get('template', 1), cfg['regexp'])
+            ext_tpls.append("%s %d %d %s" % data)
+        return ext_tpls
+
+    def _get_asserts(self, req):
+        res = []
+        assertions = req.config.get("assert", [])
+        for idx, assertion in enumerate(assertions):
+            assertion = ensure_is_dict(assertions, idx, "contains")
+            if not isinstance(assertion['contains'], list):
+                assertion['contains'] = [assertion['contains']]
+
+            item = {"re": assertion['contains'][0]}
+            if assertion.get('not', False):
+                item['invert'] = True
+            res.append(item)
+
+        return res
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)
