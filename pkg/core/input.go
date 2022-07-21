@@ -120,7 +120,7 @@ func NewInput(config InputConf) InputChannel {
 		cnt := 0
 		buf := make([]byte, 4096)
 		for {
-			item, err := ReadPayloadRecord(file, buf, strIndex)
+			item, err := readPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
 				cnt += 1
 				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
@@ -145,7 +145,7 @@ func NewInput(config InputConf) InputChannel {
 	return ch
 }
 
-func ReadPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
+func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*PayloadItem, error) {
 	// read buf that hopefully contains meta info
 	nread, err := file.Read(buf)
 	if err != nil {

@@ -20,3 +20,22 @@ func TestReplaceValues(t *testing.T) {
 
 	item.ReplaceValues(vals) // to hit the cache branch
 }
+
+func TestReadPayloadRecord(t *testing.T) {
+	ch := NewInput(InputConf{
+		PayloadFile:    "../../examples/payload-strings.txt",
+		StringsFile:    "",
+		EnableRegexes:  true,
+		Predefined:     nil,
+		IterationLimit: 2,
+	})
+
+	items := make([]*PayloadItem, 0)
+	for item := range ch {
+		items = append(items, item)
+	}
+	
+	if len(items) != 4 {
+		t.Errorf("Wrong items len: %d", len(items))
+	}
+}
