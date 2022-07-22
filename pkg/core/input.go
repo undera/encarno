@@ -45,8 +45,8 @@ type PayloadItem struct {
 	RegexOutIdx []uint16 `json:"e"`
 	RegexOut    map[string]*ExtractRegex
 
-	AssertsIdx []AssertItem `json:"c"`
-	Asserts    []AssertItem `json:"asserts"`
+	AssertsIdx []*AssertItem `json:"c"`
+	Asserts    []*AssertItem `json:"asserts"`
 
 	StrIndex *StrIndex `json:"-"`
 }

@@ -48,7 +48,7 @@ func (n *Nib) sendRequest(item *core.PayloadItem, outItem *core.OutputItem) (*Bu
 		return nil, connClose
 	}
 
-	if len(item.RegexOut) > 0 {
+	if len(item.RegexOut) > 0 || len(item.Asserts) > 0 {
 		conn.ReadRecordLimit = 0
 	} else {
 		conn.ReadRecordLimit = 1024 * 1024
