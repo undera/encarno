@@ -265,6 +265,7 @@ func NewOutput(conf OutputConf) *Output {
 		})
 	}
 
+	out.Start(conf)
 	return &out
 }
 

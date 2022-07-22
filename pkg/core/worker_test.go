@@ -11,13 +11,15 @@ func TestNewBasicWorker(t *testing.T) {
 	abrt := make(chan struct{})
 	wl := &BaseWorkload{
 		NibMaker: func() Nib {
-			return nil
+			return DummyNib{}
 		},
 		InputPayload: func() InputChannel {
 			return nil
 		},
+		Status: NewStatus(),
+		Output: NewOutput(OutputConf{}),
 	}
 	sc := make(ScheduleChannel)
 	w := NewBasicWorker(0, abrt, wl, sc, vals)
-	_ = w
+	_ = w.DoBusy(&PayloadItem{StrIndex: &StrIndex{}})
 }

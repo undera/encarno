@@ -110,7 +110,6 @@ func Run(config core.Configuration) {
 	}
 
 	output := core.NewOutput(config.Output)
-	output.Start(config.Output)
 	defer output.Close()
 
 	nibMaker := NewNibMaker(config.Protocol)
