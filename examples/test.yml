@@ -1,65 +1,13 @@
 # using this file in development
 ---
-execution:
-  - executor: encarno
-    scenario: dummy
-    concurrency: 1
-    throughput: 5
-    #iterations: 1
-    #ramp-up: 5m
-    # steps: 60
-    hold-for: 10s
-
-scenarios:
-  dummy:
-    protocol: dummy
-  simple:
-    protocol: http
-    default-address: http://localhost:8070/
-
-    variables:
-      address: 127.0.0.1:8070
-      predefined: value
-
-    requests:
-      - url: /
-        extract-regexp:
-          etag: 'ETag: (".+")'
-          date: 'Date: ([^\n]+)'
-
-      - url: '/?param=${predefined}'
-        headers:
-          If-None-Match: '${etag}'
-        assert:
-          - 'HTTP/1.1 304 Not Modified'
-          - not: true
-            contains:
-            - 'HTTP/1.1 304 Not Modified'
-
-
-      - url: http://${address}/
-        method: POST
-        label: tag-${etag}
-        body: "${date}"
-
-      # - http://[::1]:8070/
-      #- http://localhost:8000/bin/encarno
-      #- http://192.168.1.254/favicon.ico # my router
-      #- http://meo.home/favicon.ico # my router
-
-    trace-level: 0
-
-#reporting:
-#- csvresults
-
 services:
   - module: shellexec
     prepare:
-      - go build -o bin/encarno cmd/encarno/main.go
+      - go build -o ../bin/encarno ../cmd/encarno/main.go
 
 modules:
   encarno:
-    path: bin/encarno
+    path: ../bin/encarno
     # output-format: ldjson
     # index-input-strings: false
 

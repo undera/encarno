@@ -221,7 +221,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		match, s, _ := strings.Cut(s, " ")
 		group, sre, _ := strings.Cut(s, " ")
 
-		var re *RegexpProxy
+		var re = &RegexpProxy{}
 		if r, ok := regexCache[sre]; ok {
 			re.Regexp = r
 		} else {
