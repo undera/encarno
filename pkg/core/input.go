@@ -91,7 +91,6 @@ type RegexpProxy struct {
 	*regexp.Regexp
 }
 
-// UnmarshalText unmarshals json into a regexp.Regexp
 func (r *RegexpProxy) UnmarshalText(b []byte) error {
 	regex, err := regexp.Compile(string(b))
 	if err != nil {
@@ -103,7 +102,6 @@ func (r *RegexpProxy) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// MarshalText marshals regexp.Regexp as string
 func (r *RegexpProxy) MarshalText() ([]byte, error) {
 	if r.Regexp != nil {
 		return []byte(r.Regexp.String()), nil
@@ -203,6 +201,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		StrIndex: index,
 		RegexOut: map[string]*ExtractRegex{},
 		Replaces: []string{},
+		Asserts:  []*AssertItem{},
 	}
 	err = json.Unmarshal(meta, item)
 	if err != nil {
@@ -225,7 +224,11 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		if r, ok := regexCache[sre]; ok {
 			re.Regexp = r
 		} else {
-			re.Regexp = regexp.MustCompile(sre)
+			r, err := regexp.Compile(sre)
+			if err != nil {
+				return nil, err
+			}
+			re.Regexp = r
 			regexCache[sre] = re.Regexp
 		}
 
@@ -239,6 +242,26 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		}
 	}
 	item.RegexOutIdx = []uint16{}
+
+	for _, idx := range item.AssertsIdx {
+		s := item.StrIndex.Get(idx)
+		invert, sre, _ := strings.Cut(s, " ")
+
+		var re = &RegexpProxy{}
+		if r, ok := regexCache[sre]; ok {
+			re.Regexp = r
+		} else {
+			r, err := regexp.Compile(sre)
+			if err != nil {
+				return nil, err
+			}
+			re.Regexp = r
+			regexCache[sre] = re.Regexp
+		}
+
+		item.Asserts = append(item.Asserts, &AssertItem{Invert: invert != "0", Re: re})
+	}
+	item.AssertsIdx = []uint16{}
 
 	// seek payload start
 	o, err := file.Seek(-int64(len(rest)), io.SeekCurrent)

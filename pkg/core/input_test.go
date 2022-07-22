@@ -35,7 +35,7 @@ func TestReadPayloadRecordStrings(t *testing.T) {
 		items = append(items, item)
 	}
 
-	if len(items) != 4 {
+	if len(items) != 6 {
 		t.Errorf("Wrong items len: %d", len(items))
 	}
 
@@ -43,7 +43,7 @@ func TestReadPayloadRecordStrings(t *testing.T) {
 		t.Errorf("Wrong regex read for extractor")
 	}
 
-	if items[1].Asserts[0].Re.String() != "\\d+" {
+	if items[2].Asserts[0].Re.String() != "\\d+" {
 		t.Errorf("Wrong regex read for assertion")
 	}
 }
@@ -62,7 +62,15 @@ func TestReadPayloadRecordIndexes(t *testing.T) {
 		items = append(items, item)
 	}
 
-	if len(items) != 4 {
+	if len(items) != 6 {
 		t.Errorf("Wrong items len: %d", len(items))
+	}
+
+	if items[0].RegexOut["etag"].Re.String() != "ETag: (\".+\")" {
+		t.Errorf("Wrong regex read for extractor")
+	}
+
+	if items[2].Asserts[0].Re.String() != "\\d+" {
+		t.Errorf("Wrong regex read for assertion")
 	}
 }
