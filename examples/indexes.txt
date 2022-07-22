@@ -4,3 +4,6 @@ address
 http://localhost:8070
 should cache
 etag
+etag -1 1 ETag: (".+")
+false .+
+true \d+

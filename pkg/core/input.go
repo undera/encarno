@@ -45,6 +45,9 @@ type PayloadItem struct {
 	RegexOutIdx []uint16 `json:"e"`
 	RegexOut    map[string]*ExtractRegex
 
+	AssertsIdx []AssertItem `json:"c"`
+	Asserts    []AssertItem `json:"asserts"`
+
 	StrIndex *StrIndex `json:"-"`
 }
 
@@ -94,9 +97,14 @@ func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
 }
 
-func (r *ExtractRegex) UnmarshalJSON([]byte) error {
+func (r *ExtractRegex) UnmarshalJSON1([]byte) error {
 	// FIXME: implement
 	return nil
+}
+
+type AssertItem struct {
+	Re     *regexp.Regexp
+	Invert bool
 }
 
 func NewInput(config InputConf) InputChannel {
@@ -120,6 +128,7 @@ func NewInput(config InputConf) InputChannel {
 		cnt := 0
 		buf := make([]byte, 4096)
 		for {
+			offset, _ := file.Seek(0, io.SeekCurrent)
 			item, err := readPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
 				cnt += 1
@@ -130,11 +139,13 @@ func NewInput(config InputConf) InputChannel {
 				log.Debugf("Rewind payload file")
 				_, err = file.Seek(0, 0)
 				if err != nil {
+					log.Errorf("Failed to rewind the input file")
 					panic(err)
 				}
 				continue
 			} else if err != nil {
-				panic(err)
+				log.Errorf("Failed to read payload record at offset %d: %s", offset, err)
+				continue
 			}
 
 			ch <- item
@@ -175,7 +186,8 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 	}
 	err = json.Unmarshal(meta, item)
 	if err != nil {
-		panic(err)
+		log.Warningf("Problematic metadata: %s", meta)
+		return nil, errors.New(fmt.Sprintf("Failed to decode metadata: %s", err))
 	}
 
 	for _, idx := range item.ReplacesIdx {
@@ -209,9 +221,10 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 	item.RegexOutIdx = []uint16{}
 
 	// seek payload start
-	o, err := file.Seek(-int64(len(rest)), 1)
+	o, err := file.Seek(-int64(len(rest)), io.SeekCurrent)
 	_ = o
 	if err != nil {
+		log.Warningf("Failed to seek payload start %d", -len(rest))
 		panic(err)
 	}
 
@@ -220,6 +233,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 	n, err := io.ReadFull(file, item.Payload)
 	_ = n
 	if err != nil {
+		log.Warningf("Failed to read payload of len %d", item.PayloadLen)
 		panic(err)
 	}
 

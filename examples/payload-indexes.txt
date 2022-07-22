@@ -1,10 +1,10 @@
-{"plen": 53, "a": 1, "l": 2, "r": [3], "RegexOut": {"etag":{"Re": "ETag: (\".+\")", "GroupNo": 1, "MatchNo": -1}} }
+{"plen": 53, "a": 1, "l": 2, "r": [3], "e": [7]}
 GET / HTTP/1.1
 Host: localhost:8070
 X-Marker: value
 
 
-{"plen": 76, "a": 4, "l": 5, "r": [6]}
+{"plen": 76, "a": 4, "l": 5, "r": [6], "c": [8,9]}
 GET / HTTP/1.1
 Host: localhost:8070
 X-Marker: value

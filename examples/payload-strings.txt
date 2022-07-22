@@ -4,7 +4,7 @@ Host: localhost:8070
 X-Marker: value
 
 
-{"plen": 76, "address": "http://localhost:8070", "label": "should cache", "replaces": ["etag"]}
+{"plen": 76, "address": "http://localhost:8070", "label": "should cache", "replaces": ["etag"], "asserts": [{"re": ""}, {"re":"", "invert": true}]}
 GET / HTTP/1.1
 Host: localhost:8070
 X-Marker: value
