@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -79,6 +82,24 @@ func (i *OutputItem) ExtractValues(extractors map[string]*ExtractRegex, values V
 
 		values[name] = make([]byte, len(val))
 		copy(values[name], val)
+	}
+}
+
+func (i *OutputItem) Assert(asserts []*AssertItem) {
+	problems := ""
+	if i.Error != nil {
+		problems = i.Error.Error()
+	}
+
+	for _, a := range asserts {
+		found := a.Re.Find(i.RespBytes) == nil
+		if (found && !a.Invert) || (!found && a.Invert) {
+			problems += fmt.Sprintf("\nAssert failed on regexp: %s", a.Re)
+		}
+	}
+
+	if problems != "" {
+		i.Error = errors.New(strings.TrimSpace(problems))
 	}
 }
 
@@ -324,15 +345,11 @@ type BinaryOut struct {
 }
 
 func (o *BinaryOut) Close() {
-	//o.mx.Lock()
-	//defer o.mx.Unlock()
 	_ = o.writer.Flush()
 	_ = o.fd.Close()
 }
 
 func (o *BinaryOut) Push(item *OutputItem) {
-	//o.mx.Lock()
-	//defer o.mx.Unlock()
 
 	if item.Error != nil && item.ErrorStrIdx == 0 {
 		item.ErrorStrIdx = item.strIndex.Idx(item.Error.Error())
