@@ -38,6 +38,14 @@ func TestReadPayloadRecordStrings(t *testing.T) {
 	if len(items) != 4 {
 		t.Errorf("Wrong items len: %d", len(items))
 	}
+
+	if items[0].RegexOut["etag"].Re.String() != "ETag: (\".+\")" {
+		t.Errorf("Wrong regex read for extractor")
+	}
+
+	if items[1].Asserts[0].Re.String() != "\\d+" {
+		t.Errorf("Wrong regex read for assertion")
+	}
 }
 
 func TestReadPayloadRecordIndexes(t *testing.T) {

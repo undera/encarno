@@ -42,10 +42,10 @@ type PayloadItem struct {
 	ReplacesIdx []uint16 `json:"r"`
 	Replaces    []string `json:"replaces"`
 
-	RegexOutIdx []uint16 `json:"e"`
-	RegexOut    map[string]*ExtractRegex
+	RegexOutIdx []uint16                 `json:"e"`
+	RegexOut    map[string]*ExtractRegex `json:"extracts"`
 
-	AssertsIdx []*AssertItem `json:"c"`
+	AssertsIdx []uint16      `json:"c"`
 	Asserts    []*AssertItem `json:"asserts"`
 
 	StrIndex *StrIndex `json:"-"`
@@ -87,8 +87,33 @@ func (i *PayloadItem) ResolveStrings() {
 	}
 }
 
+type RegexpProxy struct {
+	*regexp.Regexp
+}
+
+// UnmarshalText unmarshals json into a regexp.Regexp
+func (r *RegexpProxy) UnmarshalText(b []byte) error {
+	regex, err := regexp.Compile(string(b))
+	if err != nil {
+		return err
+	}
+
+	r.Regexp = regex
+
+	return nil
+}
+
+// MarshalText marshals regexp.Regexp as string
+func (r *RegexpProxy) MarshalText() ([]byte, error) {
+	if r.Regexp != nil {
+		return []byte(r.Regexp.String()), nil
+	}
+
+	return nil, nil
+}
+
 type ExtractRegex struct {
-	Re      *regexp.Regexp
+	Re      *RegexpProxy
 	GroupNo uint // group 0 means whole match that were found
 	MatchNo int  // -1 means random
 }
@@ -97,13 +122,8 @@ func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
 }
 
-func (r *ExtractRegex) UnmarshalJSON1([]byte) error {
-	// FIXME: implement
-	return nil
-}
-
 type AssertItem struct {
-	Re     *regexp.Regexp
+	Re     *RegexpProxy
 	Invert bool
 }
 
@@ -201,12 +221,12 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		match, s, _ := strings.Cut(s, " ")
 		group, sre, _ := strings.Cut(s, " ")
 
-		var re *regexp.Regexp
+		var re *RegexpProxy
 		if r, ok := regexCache[sre]; ok {
-			re = r
+			re.Regexp = r
 		} else {
-			re = regexp.MustCompile(sre)
-			regexCache[sre] = re
+			re.Regexp = regexp.MustCompile(sre)
+			regexCache[sre] = re.Regexp
 		}
 
 		g, _ := strconv.Atoi(group)

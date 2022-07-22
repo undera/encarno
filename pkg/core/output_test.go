@@ -39,15 +39,15 @@ func TestExtract(t *testing.T) {
 	vals := ValMap{}
 	extrs := map[string]*ExtractRegex{
 		"var0": {
-			Re: regexp.MustCompile("not found"),
+			Re: &RegexpProxy{Regexp: regexp.MustCompile("not found")},
 		},
 		"var1": {
-			Re:      regexp.MustCompile("\\d+"),
+			Re:      &RegexpProxy{Regexp: regexp.MustCompile("\\d+")},
 			GroupNo: 0,
 			MatchNo: -1,
 		},
 		"var2": {
-			Re:      regexp.MustCompile("\\d+"),
+			Re:      &RegexpProxy{Regexp: regexp.MustCompile("\\d+")},
 			GroupNo: 0,
 			MatchNo: 0,
 		},
@@ -67,10 +67,10 @@ func TestExtract(t *testing.T) {
 func TestAssert(t *testing.T) {
 	item := OutputItem{Label: "newlabel", RespBytes: []byte("test 123")}
 	asserts := []*AssertItem{
-		{Invert: false, Re: regexp.MustCompile("\\d+")},
-		{Invert: false, Re: regexp.MustCompile("notpresent")},
-		{Invert: true, Re: regexp.MustCompile("notpresent")},
-		{Invert: true, Re: regexp.MustCompile("\\d+")},
+		{Invert: false, Re: &RegexpProxy{Regexp: regexp.MustCompile("\\d+")}},
+		{Invert: false, Re: &RegexpProxy{Regexp: regexp.MustCompile("notpresent")}},
+		{Invert: true, Re: &RegexpProxy{Regexp: regexp.MustCompile("notpresent")}},
+		{Invert: true, Re: &RegexpProxy{Regexp: regexp.MustCompile("\\d+")}},
 	}
 	item.Assert(asserts)
 	if item.Error.Error() != "Assert failed on regexp: notpresent\nAssert failed on regexp: \\d+" {
