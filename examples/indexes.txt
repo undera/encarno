@@ -1,0 +1,6 @@
+${address}
+/
+address
+http://localhost:8070
+should cache
+etag
