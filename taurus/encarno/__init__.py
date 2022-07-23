@@ -88,11 +88,6 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
     def get_error_diagnostics(self):
         diagnostics = []
         if self.generator is not None:
-            if self.stdout is not None:
-                with open(self.stdout.name) as fds:
-                    contents = fds.read().strip()
-                    if contents:
-                        diagnostics.append("Tool STDOUT:\n" + contents)
             if self.stderr is not None:
                 with open(self.stderr.name) as fds:
                     contents = fds.read().strip()
