@@ -200,11 +200,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		return nil, io.EOF
 	}
 
-	// read meta
-	meta, rest, found := bytes.Cut(buf[offset:nread], []byte{10})
-	if !found {
-		return nil, errors.New(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
-	}
+	meta := readMeta(file, buf, offset, nread)
 
 	item := &PayloadItem{
 		StrIndex: index,
@@ -212,17 +208,101 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		Replaces: []string{},
 		Asserts:  []*AssertItem{},
 	}
-	err = json.Unmarshal(meta, item)
-	if err != nil {
-		log.Warningf("Problematic metadata: %s", meta)
-		return nil, errors.New(fmt.Sprintf("Failed to decode metadata: %s", err))
+
+	errMeta := json.Unmarshal(meta, item)
+	plen := item.PayloadLen
+	if errMeta != nil {
+		log.Warningf("Problematic metadata, will attempt to skip the record: %s", meta)
+		match := pLenRe.FindSubmatch(meta)
+		p, errAtoi := strconv.Atoi(string(match[1]))
+		if errAtoi != nil {
+			log.Warningf("Failed to recover and read plen: %s", errAtoi)
+		} else {
+			plen = p
+		}
 	}
 
+	errPayload := readPayload(file, item, plen)
+	if errPayload != nil {
+		log.Warningf("Failed to read payload of len %d: %s", plen, errPayload)
+	}
+
+	if errMeta != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to decode metadata: %s", errMeta))
+	} else if errPayload != nil {
+		panic(errPayload)
+	}
+
+	decodeReplaces(item)
+
+	err = decodeExtracts(item)
+	if err != nil {
+		return nil, err
+	}
+
+	err = decodeAsserts(item)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Produced item: %s", meta)
+	return item, nil
+}
+
+func readMeta(file io.ReadSeeker, buf []byte, offset int, nread int) []byte {
+	// read meta
+	meta, rest, found := bytes.Cut(buf[offset:nread], []byte{10})
+	if !found {
+		panic(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
+	}
+
+	// seek payload start
+	_, err := file.Seek(-int64(len(rest)), io.SeekCurrent)
+	if err != nil {
+		log.Warningf("Failed to seek payload start %d", -len(rest))
+		panic(err)
+	}
+	return meta
+}
+
+func readPayload(file io.ReadSeeker, item *PayloadItem, plen int) error {
+	// read payload
+	item.Payload = make([]byte, plen)
+	_, err := io.ReadFull(file, item.Payload)
+	return err
+}
+
+func decodeReplaces(item *PayloadItem) {
 	for _, idx := range item.ReplacesIdx {
 		item.Replaces = append(item.Replaces, item.StrIndex.Get(idx))
 	}
 	item.ReplacesIdx = []uint16{}
+}
 
+func decodeAsserts(item *PayloadItem) error {
+	for _, idx := range item.AssertsIdx {
+		s := item.StrIndex.Get(idx)
+		invert, sre, _ := strings.Cut(s, " ")
+
+		var re = &RegexpProxy{}
+		if r, ok := regexCache[sre]; ok {
+			re.Regexp = r
+		} else {
+			r, err := regexp.Compile(sre)
+			if err != nil {
+				return err
+			}
+			re.Regexp = r
+			regexCache[sre] = re.Regexp
+		}
+
+		item.Asserts = append(item.Asserts, &AssertItem{Invert: invert != "0", Re: re})
+	}
+	item.AssertsIdx = []uint16{}
+	return nil
+}
+
+func decodeExtracts(item *PayloadItem) error {
 	for _, idx := range item.RegexOutIdx {
 		s := item.StrIndex.Get(idx)
 		name, s, _ := strings.Cut(s, " ")
@@ -235,7 +315,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		} else {
 			r, err := regexp.Compile(sre)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			re.Regexp = r
 			regexCache[sre] = re.Regexp
@@ -251,44 +331,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		}
 	}
 	item.RegexOutIdx = []uint16{}
-
-	for _, idx := range item.AssertsIdx {
-		s := item.StrIndex.Get(idx)
-		invert, sre, _ := strings.Cut(s, " ")
-
-		var re = &RegexpProxy{}
-		if r, ok := regexCache[sre]; ok {
-			re.Regexp = r
-		} else {
-			r, err := regexp.Compile(sre)
-			if err != nil {
-				return nil, err
-			}
-			re.Regexp = r
-			regexCache[sre] = re.Regexp
-		}
-
-		item.Asserts = append(item.Asserts, &AssertItem{Invert: invert != "0", Re: re})
-	}
-	item.AssertsIdx = []uint16{}
-
-	// seek payload start
-	o, err := file.Seek(-int64(len(rest)), io.SeekCurrent)
-	_ = o
-	if err != nil {
-		log.Warningf("Failed to seek payload start %d", -len(rest))
-		panic(err)
-	}
-
-	// read payload
-	item.Payload = make([]byte, item.PayloadLen)
-	n, err := io.ReadFull(file, item.Payload)
-	_ = n
-	if err != nil {
-		log.Warningf("Failed to read payload of len %d", item.PayloadLen)
-		panic(err)
-	}
-
-	log.Debugf("Produced item: %s", meta)
-	return item, nil
+	return nil
 }
+
+var pLenRe = regexp.MustCompile("\"plen\":\\s*(\\d+)")
