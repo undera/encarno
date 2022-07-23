@@ -143,15 +143,22 @@ func NewInput(config InputConf) InputChannel {
 
 	ch := make(InputChannel)
 	go func() {
-		cnt := 0
+		iterations := 0
+		good := 0
+		bad := 0
 		buf := make([]byte, 4096)
 		for {
 			offset, _ := file.Seek(0, io.SeekCurrent)
 			item, err := readPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
-				cnt += 1
-				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
+				iterations++
+				if config.IterationLimit > 0 && iterations >= config.IterationLimit {
 					break
+				}
+
+				ratio := float64(good) / float64(good+bad)
+				if ratio < 0.5 {
+					panic(fmt.Sprintf("Payload input file is problematic: %d good records and %d bad records read", good, bad))
 				}
 
 				log.Debugf("Rewind payload file")
@@ -163,9 +170,11 @@ func NewInput(config InputConf) InputChannel {
 				continue
 			} else if err != nil {
 				log.Errorf("Failed to read payload record at offset %d: %s", offset, err)
+				bad++
 				continue
 			}
 
+			good++
 			ch <- item
 		}
 		log.Infof("Input exhausted")
