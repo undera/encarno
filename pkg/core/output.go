@@ -94,7 +94,11 @@ func (i *OutputItem) Assert(asserts []*AssertItem) {
 	for _, a := range asserts {
 		found := a.Re.Find(i.RespBytes) == nil
 		if found != a.Invert {
-			problems += fmt.Sprintf("\nAssert failed on regexp: %s", a.Re)
+			i := ""
+			if a.Invert {
+				i = "inverted "
+			}
+			problems += fmt.Sprintf("\nAssert failed on %sregexp: %s", i, a.Re)
 		}
 	}
 

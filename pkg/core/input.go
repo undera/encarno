@@ -111,9 +111,9 @@ func (r *RegexpProxy) MarshalText() ([]byte, error) {
 }
 
 type ExtractRegex struct {
-	Re      *RegexpProxy
-	GroupNo uint // group 0 means whole match that were found
-	MatchNo int  // -1 means random
+	Re      *RegexpProxy `json:"re"`
+	GroupNo uint         `json:"groupNo"` // group 0 means whole match that were found
+	MatchNo int          `json:"matchNo"` // -1 means random
 }
 
 func (r *ExtractRegex) String() string {

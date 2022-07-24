@@ -1,4 +1,4 @@
-{"plen": 53, "address": "${address}", "label": "/", "replaces": ["address"], "extracts": {"etag":{"Re": "ETag: (\".+\")", "GroupNo": 1, "MatchNo": -1}} }
+{"plen": 53, "address": "${address}", "label": "/", "replaces": ["address"], "extracts": {"etag":{"re": "ETag: (\".+\")", "groupNo": 1, "matchNo": -1}} }
 GET / HTTP/1.1
 Host: localhost:8070
 X-Marker: value

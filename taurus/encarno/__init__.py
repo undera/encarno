@@ -347,60 +347,68 @@ class EncarnoFilesGenerator(object):
         asserts = self._get_asserts(request)
 
         if self.input_strings:
-            if host not in str_list:
-                str_list.append(host)
-
-            if request.label not in str_list:
-                str_list.append(request.label)
-
-            for val in consumes:
-                if val not in str_list:
-                    str_list.append(val)
-
-            for val in ext_tpls:
-                if val not in str_list:
-                    str_list.append(val)
-
-            for val in asserts:
-                if val["re"] not in str_list:
-                    str_list.append(val["re"])
-
-            metadata = {
-                "plen": len(tcp_payload.encode('utf-8')),
-                "a": str_list.index(host) + 1,
-                "l": str_list.index(request.label) + 1,
-            }
-
-            if consumes:
-                metadata["r"] = [str_list.index(x) + 1 for x in consumes]
-
-            if ext_tpls:
-                metadata["e"] = [str_list.index(x) + 1 for x in ext_tpls]
-
-            if asserts:
-                metadata["c"] = []
-                for x in asserts:
-                    item = {"r": str_list.index(x["re"])}
-                    if x.get("invert"):
-                        item["n"] = True
-                    metadata["c"].append(item)
+            metadata = self._get_metadata_indexed(request, host, consumes, ext_tpls, asserts, str_list, tcp_payload)
         else:
-            metadata = {
-                "plen": len(tcp_payload.encode('utf-8')),
-                "address": host,
-                "label": request.label,
-            }
-
-            if consumes:
-                metadata["replaces"] = consumes
-
-            if ext_tpls:
-                metadata["extracts"] = ext_tpls
-
-            if asserts:
-                metadata["asserts"] = asserts
+            metadata = self._get_metadata_strings(request, host, consumes, ext_tpls, asserts, tcp_payload)
 
         return metadata, tcp_payload
+
+    def _get_metadata_strings(self, request, host, consumes, ext_tpls, asserts, tcp_payload):
+        metadata = {
+            "plen": len(tcp_payload.encode('utf-8')),
+            "address": host,
+            "label": request.label,
+        }
+        if consumes:
+            metadata["replaces"] = consumes
+
+        if ext_tpls:
+            metadata["extracts"] = ext_tpls
+
+        if asserts:
+            metadata["asserts"] = asserts
+
+        return metadata
+
+    def _get_metadata_indexed(self, request, host, consumes, ext_tpls, asserts, str_list, tcp_payload):
+        if host not in str_list:
+            str_list.append(host)
+
+        if request.label not in str_list:
+            str_list.append(request.label)
+
+        metadata = {
+            "plen": len(tcp_payload.encode('utf-8')),
+            "a": str_list.index(host) + 1,
+            "l": str_list.index(request.label) + 1,
+        }
+
+        for val in consumes:
+            if val not in str_list:
+                str_list.append(val)
+
+        if consumes:
+            metadata["r"] = [str_list.index(x) + 1 for x in consumes]
+
+        if ext_tpls:
+            metadata["e"] = []
+            for varname, cfg in ext_tpls.items():
+                s_data = "%s %d %d %s" % (varname, cfg.get('matchNo', 0), cfg.get('groupNo', 1), cfg['re'])
+                if s_data not in str_list:
+                    str_list.append(s_data)
+
+                metadata["e"].append(str_list.index(s_data) + 1)
+
+        if asserts:
+            metadata["c"] = []
+            for x in asserts:
+                item = "%s %s" % (1 if x.get("invert") else 0, x["re"])
+                if item not in str_list:
+                    str_list.append(item)
+
+                metadata["c"].append(str_list.index(item) + 1)
+
+        return metadata
 
     def _get_consumers(self, all_consumes, host, request, tcp_payload):
         consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
