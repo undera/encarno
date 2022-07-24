@@ -85,15 +85,18 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
     def shutdown(self):
         shutdown_process(self.process, self.log)
 
+    def post_process(self):
+        super().post_process()
+        if self._get_stderr():
+            self.log.warning("Encarno STDERR contains some messages, please check it out: %s", self.stderr.name)
+
     def get_error_diagnostics(self):
         diagnostics = []
         if self.generator is not None:
-            if self.stderr is not None:
-                with open(self.stderr.name) as fds:
-                    contents = fds.read().strip()
-                    # TODO: find and focus on panic / error messages
-                    if contents:
-                        diagnostics.append("Tool STDERR:\n" + contents)
+            # TODO: find and focus on panic / error messages
+            contents = self._get_stderr()
+            if contents:
+                diagnostics.append("Tool STDERR:\n" + contents)
         return diagnostics
 
     def get_widget(self):
@@ -112,6 +115,11 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
             return [script]
         else:
             return []
+
+    def _get_stderr(self):
+        if self.stderr is not None:
+            with open(self.stderr.name) as fds:
+                return fds.read().strip()
 
 
 class ToolBinary(RequiredTool):
@@ -419,11 +427,14 @@ class EncarnoFilesGenerator(object):
 
     def _get_extractors(self, request):
         extractors = request.config.get("extract-regexp", {})
-        ext_tpls = []
+        ext_tpls = {}
         for varname in extractors:
             cfg = ensure_is_dict(extractors, varname, "regexp")
-            data = (varname, cfg.get('match-no', 0), cfg.get('template', 1), cfg['regexp'])
-            ext_tpls.append("%s %d %d %s" % data)
+            ext_tpls[varname] = {
+                "matchNo": cfg.get('match-no', 0),
+                "groupNo": cfg.get('template', 1),
+                "re": cfg['regexp']
+            }
         return ext_tpls
 
     def _get_asserts(self, req):
