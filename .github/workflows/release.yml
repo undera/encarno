@@ -24,9 +24,9 @@ jobs:
           include: "cmd/encarno/main.go"
 
       - name: Generate build files
-        uses: crazy-max/ghaction-xgo@v2.0.0
+        uses: crazy-max/ghaction-xgo@v2.1.0
         with:
-          xgo_version: latest
+          xgo_version: v0.19.0
           go_version: 1.18
           dest: build
           pkg: "cmd/encarno"
