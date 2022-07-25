@@ -39,11 +39,6 @@ jobs:
           buildmode: default
           buildvcs: false
           tags: ""
-      - name: Simplifying artifacts # Step to reduce a platform' substring overhead e.g darwin-10.16-amd64, windows-4.0-amd64.exe
-        run: |
-          mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
-          mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
-          mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
