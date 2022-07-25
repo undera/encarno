@@ -379,11 +379,12 @@ we have lost some speed because of that (we believe not drastically).
 
 It is intentionally not fully-capable _load testing tool_, it is just _load generator_ that assumes the input preparations and result analysis is done by wrapper scripts.
 
+---
+
 ## Changelog
 
-### 0.5 -- upcoming
+### 0.5 -- 25 jul 2022
 - regular expression evaluation, extractions and assertions
-
 - make sure custom payload files work fine
 - add external payload indexed example
 
@@ -432,7 +433,6 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 - udp protocol nib
 - Go plugins used for nib
 
-
-Test run: `PYTHONPATH=taurus bzt taurus/encarno/encarno-module.yml taurus/test.yml`
+---
 
 <p align="center"><sup><sub><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/pt.svg" height="8" alt="PT"> Made in Portugal</sub></sup></p>
