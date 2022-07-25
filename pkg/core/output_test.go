@@ -73,7 +73,7 @@ func TestAssert(t *testing.T) {
 		{Invert: true, Re: &RegexpProxy{Regexp: regexp.MustCompile("\\d+")}},
 	}
 	item.Assert(asserts)
-	if item.Error.Error() != "Assert failed on regexp: notpresent\nAssert failed on regexp: \\d+" {
+	if item.Error.Error() != "Assert failed on regexp: notpresent\nAssert failed on inverted regexp: \\d+" {
 		t.Errorf("Should not be errors, got: %s", item.Error)
 	}
 }

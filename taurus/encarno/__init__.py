@@ -304,7 +304,7 @@ class EncarnoFilesGenerator(object):
                     fp.writelines(x + "\n" for x in str_list)
 
         else:
-            self.input_strings = scenario.get("input-strings")
+            self.input_strings = self.engine.find_file(scenario.get("input-strings"))
 
         return uses_regex
 
@@ -317,7 +317,7 @@ class EncarnoFilesGenerator(object):
 
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
-            requests = self._text_file_reader(req_val, scenario)
+            requests = self._text_file_reader(self.engine.find_file(req_val), scenario)
         else:
             requests = scenario.get_requests()
 
