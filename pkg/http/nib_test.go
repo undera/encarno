@@ -58,7 +58,7 @@ func TestOne(t *testing.T) {
 			inp: core.PayloadItem{
 				Address:  "httpbin.org",
 				Payload:  []byte("POST /anything HTTP/1.1\r\nHost:httpbin.org\r\nX-Hdr: ${input}\r\n\r\n"), // "test ${input} while producing 123"
-				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: regexp.MustCompile("1+")}},
+				RegexOut: map[string]*core.ExtractRegex{"test1": {Re: &core.RegexpProxy{Regexp: regexp.MustCompile("1+")}}},
 			},
 			out: "1",
 		},

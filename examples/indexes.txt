@@ -1,0 +1,10 @@
+${address}
+/
+address
+http://localhost:8070
+should cache
+etag
+etag -1 1 ETag: (".+")
+0 \d+
+1 \d
+assert fails

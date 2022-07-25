@@ -5,8 +5,16 @@ import (
 	"os"
 	"regexp"
 	"testing"
-	"time"
 )
+
+func tmp() string {
+	resultFile, err := os.CreateTemp(os.TempDir(), "encarno_*.tmp")
+	if err != nil {
+		panic(err)
+	}
+	_ = resultFile.Close()
+	return resultFile.Name()
+}
 
 func TestOutput(t *testing.T) {
 	cfg := OutputConf{
@@ -21,18 +29,25 @@ func TestOutput(t *testing.T) {
 	item := OutputItem{Label: "newlabel", RespBytes: []byte("test 123")}
 	item.EndWithError(io.EOF)
 
+	out.Push(&item)
+	out.Close()
+}
+
+func TestExtract(t *testing.T) {
+	item := OutputItem{Label: "newlabel", RespBytes: []byte("test 123")}
+
 	vals := ValMap{}
 	extrs := map[string]*ExtractRegex{
 		"var0": {
-			Re: regexp.MustCompile("not found"),
+			Re: &RegexpProxy{Regexp: regexp.MustCompile("not found")},
 		},
 		"var1": {
-			Re:      regexp.MustCompile("\\d+"),
+			Re:      &RegexpProxy{Regexp: regexp.MustCompile("\\d+")},
 			GroupNo: 0,
 			MatchNo: -1,
 		},
 		"var2": {
-			Re:      regexp.MustCompile("\\d+"),
+			Re:      &RegexpProxy{Regexp: regexp.MustCompile("\\d+")},
 			GroupNo: 0,
 			MatchNo: 0,
 		},
@@ -47,17 +62,18 @@ func TestOutput(t *testing.T) {
 	if string(vals["var2"]) != "123" {
 		t.Errorf("No var2")
 	}
-
-	out.Push(&item)
-	time.Sleep(1 * time.Second)
-	out.Close()
 }
 
-func tmp() string {
-	resultFile, err := os.CreateTemp(os.TempDir(), "encarno_*.tmp")
-	if err != nil {
-		panic(err)
+func TestAssert(t *testing.T) {
+	item := OutputItem{Label: "newlabel", RespBytes: []byte("test 123")}
+	asserts := []*AssertItem{
+		{Invert: false, Re: &RegexpProxy{Regexp: regexp.MustCompile("\\d+")}},
+		{Invert: false, Re: &RegexpProxy{Regexp: regexp.MustCompile("notpresent")}},
+		{Invert: true, Re: &RegexpProxy{Regexp: regexp.MustCompile("notpresent")}},
+		{Invert: true, Re: &RegexpProxy{Regexp: regexp.MustCompile("\\d+")}},
 	}
-	_ = resultFile.Close()
-	return resultFile.Name()
+	item.Assert(asserts)
+	if item.Error.Error() != "Assert failed on regexp: notpresent\nAssert failed on inverted regexp: \\d+" {
+		t.Errorf("Should not be errors, got: %s", item.Error)
+	}
 }

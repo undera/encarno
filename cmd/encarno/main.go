@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encarno/pkg/core"
 	"encarno/pkg/http"
 	"encarno/pkg/scenario"
@@ -18,6 +19,7 @@ import (
 var controller core.WorkerSpawner
 
 func main() {
+	log.SetOutput(&OutputSplitter{})
 	if os.Getenv("DEBUG") == "" {
 		log.SetLevel(log.InfoLevel)
 	} else {
@@ -110,7 +112,6 @@ func Run(config core.Configuration) {
 	}
 
 	output := core.NewOutput(config.Output)
-	output.Start(config.Output)
 	defer output.Close()
 
 	nibMaker := NewNibMaker(config.Protocol)
@@ -149,4 +150,16 @@ func NewWorkload(workersConf core.WorkerConf, inputConfig core.InputConf, nibMak
 	default:
 		panic(fmt.Sprintf("Unsupported workers mode: %s", workersConf.Mode))
 	}
+}
+
+type OutputSplitter struct{}
+
+func (splitter *OutputSplitter) Write(p []byte) (n int, err error) {
+	if bytes.Contains(p, []byte("level=error")) || bytes.Contains(p, []byte("level=warning")) {
+		n, err = os.Stderr.Write(p)
+		if err != nil {
+			return n, err
+		}
+	}
+	return os.Stdout.Write(p)
 }

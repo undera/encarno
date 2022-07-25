@@ -21,7 +21,7 @@ func TestReplaceValues(t *testing.T) {
 	item.ReplaceValues(vals) // to hit the cache branch
 }
 
-func TestReadPayloadRecord(t *testing.T) {
+func TestReadPayloadRecordStrings(t *testing.T) {
 	ch := NewInput(InputConf{
 		PayloadFile:    "../../examples/payload-strings.txt",
 		StringsFile:    "",
@@ -35,7 +35,42 @@ func TestReadPayloadRecord(t *testing.T) {
 		items = append(items, item)
 	}
 
-	if len(items) != 4 {
+	if len(items) != 6 {
 		t.Errorf("Wrong items len: %d", len(items))
+	}
+
+	if items[0].RegexOut["etag"].Re.String() != "ETag: (\".+\")" {
+		t.Errorf("Wrong regex read for extractor")
+	}
+
+	if items[2].Asserts[0].Re.String() != "\\d+" {
+		t.Errorf("Wrong regex read for assertion")
+	}
+}
+
+func TestReadPayloadRecordIndexes(t *testing.T) {
+	ch := NewInput(InputConf{
+		PayloadFile:    "../../examples/payload-indexes.txt",
+		StringsFile:    "../../examples/indexes.txt",
+		EnableRegexes:  true,
+		Predefined:     nil,
+		IterationLimit: 2,
+	})
+
+	items := make([]*PayloadItem, 0)
+	for item := range ch {
+		items = append(items, item)
+	}
+
+	if len(items) != 6 {
+		t.Errorf("Wrong items len: %d", len(items))
+	}
+
+	if items[0].RegexOut["etag"].Re.String() != "ETag: (\".+\")" {
+		t.Errorf("Wrong regex read for extractor")
+	}
+
+	if items[2].Asserts[0].Re.String() != "\\d+" {
+		t.Errorf("Wrong regex read for assertion")
 	}
 }

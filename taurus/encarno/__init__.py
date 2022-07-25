@@ -85,20 +85,18 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
     def shutdown(self):
         shutdown_process(self.process, self.log)
 
+    def post_process(self):
+        super().post_process()
+        if self._get_stderr():
+            self.log.warning("Encarno STDERR contains some messages, please check it out: %s", self.stderr.name)
+
     def get_error_diagnostics(self):
         diagnostics = []
         if self.generator is not None:
-            if self.stdout is not None:
-                with open(self.stdout.name) as fds:
-                    contents = fds.read().strip()
-                    if contents:
-                        diagnostics.append("Tool STDOUT:\n" + contents)
-            if self.stderr is not None:
-                with open(self.stderr.name) as fds:
-                    contents = fds.read().strip()
-                    # TODO: find and focus on panic / error messages
-                    if contents:
-                        diagnostics.append("Tool STDERR:\n" + contents)
+            # TODO: find and focus on panic / error messages
+            contents = self._get_stderr()
+            if contents:
+                diagnostics.append("Tool STDERR:\n" + contents)
         return diagnostics
 
     def get_widget(self):
@@ -117,6 +115,11 @@ class EncarnoExecutor(ScenarioExecutor, HavingInstallableTools):
             return [script]
         else:
             return []
+
+    def _get_stderr(self):
+        if self.stderr is not None:
+            with open(self.stderr.name) as fds:
+                return fds.read().strip()
 
 
 class ToolBinary(RequiredTool):
@@ -301,7 +304,7 @@ class EncarnoFilesGenerator(object):
                     fp.writelines(x + "\n" for x in str_list)
 
         else:
-            self.input_strings = scenario.get("input-strings")
+            self.input_strings = self.engine.find_file(scenario.get("input-strings"))
 
         return uses_regex
 
@@ -314,7 +317,7 @@ class EncarnoFilesGenerator(object):
 
         req_val = scenario.get("requests")
         if isinstance(req_val, str):
-            requests = self._text_file_reader(req_val, scenario)
+            requests = self._text_file_reader(self.engine.find_file(req_val), scenario)
         else:
             requests = scenario.get_requests()
 
@@ -347,59 +350,107 @@ class EncarnoFilesGenerator(object):
 
     def _convert_request(self, all_consumes, request, scenario, str_list):
         host, tcp_payload = self._build_request(request, scenario)
+        consumes = self._get_consumers(all_consumes, host, request, tcp_payload)
+        ext_tpls = self._get_extractors(request)
+        asserts = self._get_asserts(request)
+
+        if self.input_strings:
+            metadata = self._get_metadata_indexed(request, host, consumes, ext_tpls, asserts, str_list, tcp_payload)
+        else:
+            metadata = self._get_metadata_strings(request, host, consumes, ext_tpls, asserts, tcp_payload)
+
+        return metadata, tcp_payload
+
+    def _get_metadata_strings(self, request, host, consumes, ext_tpls, asserts, tcp_payload):
+        metadata = {
+            "plen": len(tcp_payload.encode('utf-8')),
+            "address": host,
+            "label": request.label,
+        }
+        if consumes:
+            metadata["replaces"] = consumes
+
+        if ext_tpls:
+            metadata["extracts"] = ext_tpls
+
+        if asserts:
+            metadata["asserts"] = asserts
+
+        return metadata
+
+    def _get_metadata_indexed(self, request, host, consumes, ext_tpls, asserts, str_list, tcp_payload):
+        if host not in str_list:
+            str_list.append(host)
+
+        if request.label not in str_list:
+            str_list.append(request.label)
+
+        metadata = {
+            "plen": len(tcp_payload.encode('utf-8')),
+            "a": str_list.index(host) + 1,
+            "l": str_list.index(request.label) + 1,
+        }
+
+        for val in consumes:
+            if val not in str_list:
+                str_list.append(val)
+
+        if consumes:
+            metadata["r"] = [str_list.index(x) + 1 for x in consumes]
+
+        if ext_tpls:
+            metadata["e"] = []
+            for varname, cfg in ext_tpls.items():
+                s_data = "%s %d %d %s" % (varname, cfg.get('matchNo', 0), cfg.get('groupNo', 1), cfg['re'])
+                if s_data not in str_list:
+                    str_list.append(s_data)
+
+                metadata["e"].append(str_list.index(s_data) + 1)
+
+        if asserts:
+            metadata["c"] = []
+            for x in asserts:
+                item = "%s %s" % (1 if x.get("invert") else 0, x["re"])
+                if item not in str_list:
+                    str_list.append(item)
+
+                metadata["c"].append(str_list.index(item) + 1)
+
+        return metadata
+
+    def _get_consumers(self, all_consumes, host, request, tcp_payload):
         consumes = re.findall(r'\$\{([A-Za-z]\w+)}', tcp_payload)
         consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', host))
         consumes.extend(re.findall(r'\$\{([A-Za-z]\w+)}', request.label))
         all_consumes.update(consumes)
+        return consumes
+
+    def _get_extractors(self, request):
         extractors = request.config.get("extract-regexp", {})
-        ext_tpls = []
+        ext_tpls = {}
         for varname in extractors:
             cfg = ensure_is_dict(extractors, varname, "regexp")
-            data = (varname, cfg.get('match-no', 1), cfg.get('template', 1), cfg['regexp'])
-            ext_tpls.append("%s %d %d %s" % data)
-
-        if self.input_strings:
-            if host not in str_list:
-                str_list.append(host)
-
-            if request.label not in str_list:
-                str_list.append(request.label)
-
-            for val in consumes:
-                if val not in str_list:
-                    str_list.append(val)
-
-            for val in ext_tpls:
-                if val not in str_list:
-                    str_list.append(val)
-
-            metadata = {
-                "plen": len(tcp_payload.encode('utf-8')),
-                "a": str_list.index(host) + 1,
-                "l": str_list.index(request.label) + 1,
+            ext_tpls[varname] = {
+                "matchNo": cfg.get('match-no', 0),
+                "groupNo": cfg.get('template', 1),
+                "re": cfg['regexp']
             }
+        return ext_tpls
 
-            if consumes:
-                metadata["r"] = [str_list.index(x) + 1 for x in consumes]
+    def _get_asserts(self, req):
+        res = []
+        assertions = req.config.get("assert", [])
+        for idx, assertion in enumerate(assertions):
+            assertion = ensure_is_dict(assertions, idx, "contains")
+            if not isinstance(assertion['contains'], list):
+                assertion['contains'] = [assertion['contains']]
 
-            if ext_tpls:
-                metadata["e"] = [str_list.index(x) + 1 for x in ext_tpls]
-        else:
-            metadata = {
-                "plen": len(tcp_payload.encode('utf-8')),
-                "address": host,
-                "label": request.label,
-                "replaces": consumes,
-                "extracts": ext_tpls,
-            }
+            item = {"re": assertion['contains'][0]}
+            if assertion.get('not', False):
+                item['invert'] = True
+            res.append(item)
 
-            if consumes:
-                metadata["replaces"] = consumes
-
-            if ext_tpls:
-                metadata["extracts"] = ext_tpls
-
-        return metadata, tcp_payload
+        return res
 
     def _build_request(self, request: HTTPRequest, scenario: Scenario):
         host_url, netloc, path = self._get_request_path(request, scenario)

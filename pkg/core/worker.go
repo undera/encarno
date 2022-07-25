@@ -94,6 +94,7 @@ func (w *Worker) DoBusy(item *PayloadItem) *OutputItem {
 	res.Concurrency = uint32(w.Status.GetBusy())
 	w.Status.DecBusy()
 	res.ExtractValues(item.RegexOut, w.Values)
+	res.Assert(item.Asserts)
 	w.Output.Push(res)
 	return res
 }

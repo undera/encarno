@@ -42,8 +42,11 @@ type PayloadItem struct {
 	ReplacesIdx []uint16 `json:"r"`
 	Replaces    []string `json:"replaces"`
 
-	RegexOutIdx []uint16 `json:"e"`
-	RegexOut    map[string]*ExtractRegex
+	RegexOutIdx []uint16                 `json:"e"`
+	RegexOut    map[string]*ExtractRegex `json:"extracts"`
+
+	AssertsIdx []uint16      `json:"c"`
+	Asserts    []*AssertItem `json:"asserts"`
 
 	StrIndex *StrIndex `json:"-"`
 }
@@ -84,19 +87,42 @@ func (i *PayloadItem) ResolveStrings() {
 	}
 }
 
+type RegexpProxy struct {
+	*regexp.Regexp
+}
+
+func (r *RegexpProxy) UnmarshalText(b []byte) error {
+	regex, err := regexp.Compile(string(b))
+	if err != nil {
+		return err
+	}
+
+	r.Regexp = regex
+
+	return nil
+}
+
+func (r *RegexpProxy) MarshalText() ([]byte, error) {
+	if r.Regexp != nil {
+		return []byte(r.Regexp.String()), nil
+	}
+
+	return nil, nil
+}
+
 type ExtractRegex struct {
-	Re      *regexp.Regexp
-	GroupNo uint // group 0 means whole match that were found
-	MatchNo int  // -1 means random
+	Re      *RegexpProxy `json:"re"`
+	GroupNo uint         `json:"groupNo"` // group 0 means whole match that were found
+	MatchNo int          `json:"matchNo"` // -1 means random
 }
 
 func (r *ExtractRegex) String() string {
 	return r.Re.String() + " group " + strconv.Itoa(int(r.GroupNo)) + " match " + strconv.Itoa(r.MatchNo)
 }
 
-func (r *ExtractRegex) UnmarshalJSON([]byte) error {
-	// FIXME: implement
-	return nil
+type AssertItem struct {
+	Re     *RegexpProxy
+	Invert bool
 }
 
 func NewInput(config InputConf) InputChannel {
@@ -117,26 +143,38 @@ func NewInput(config InputConf) InputChannel {
 
 	ch := make(InputChannel)
 	go func() {
-		cnt := 0
+		iterations := 0
+		good := 0
+		bad := 0
 		buf := make([]byte, 4096)
 		for {
+			offset, _ := file.Seek(0, io.SeekCurrent)
 			item, err := readPayloadRecord(file, buf, strIndex)
 			if err == io.EOF {
-				cnt += 1
-				if config.IterationLimit > 0 && cnt >= config.IterationLimit {
+				iterations++
+				if config.IterationLimit > 0 && iterations >= config.IterationLimit {
 					break
+				}
+
+				ratio := float64(good) / float64(good+bad)
+				if ratio < 0.5 {
+					panic(fmt.Sprintf("Payload input file is problematic: %d good records and %d bad records read", good, bad))
 				}
 
 				log.Debugf("Rewind payload file")
 				_, err = file.Seek(0, 0)
 				if err != nil {
+					log.Errorf("Failed to rewind the input file")
 					panic(err)
 				}
 				continue
 			} else if err != nil {
-				panic(err)
+				log.Errorf("Failed to read payload record at offset %d: %s", offset, err)
+				bad++
+				continue
 			}
 
+			good++
 			ch <- item
 		}
 		log.Infof("Input exhausted")
@@ -162,39 +200,125 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		return nil, io.EOF
 	}
 
-	// read meta
-	meta, rest, found := bytes.Cut(buf[offset:nread], []byte{10})
-	if !found {
-		return nil, errors.New(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
-	}
+	meta := readMeta(file, buf, offset, nread)
 
 	item := &PayloadItem{
 		StrIndex: index,
 		RegexOut: map[string]*ExtractRegex{},
 		Replaces: []string{},
-	}
-	err = json.Unmarshal(meta, item)
-	if err != nil {
-		panic(err)
+		Asserts:  []*AssertItem{},
 	}
 
+	errMeta := json.Unmarshal(meta, item)
+	plen := item.PayloadLen
+	if errMeta != nil {
+		log.Warningf("Problematic metadata, will attempt to skip the record: %s", meta)
+		match := pLenRe.FindSubmatch(meta)
+		p, errAtoi := strconv.Atoi(string(match[1]))
+		if errAtoi != nil {
+			log.Warningf("Failed to recover and read plen: %s", errAtoi)
+		} else {
+			plen = p
+		}
+	}
+
+	errPayload := readPayload(file, item, plen)
+	if errPayload != nil {
+		log.Warningf("Failed to read payload of len %d: %s", plen, errPayload)
+	}
+
+	if errMeta != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to decode metadata: %s", errMeta))
+	} else if errPayload != nil {
+		panic(errPayload)
+	}
+
+	decodeReplaces(item)
+
+	err = decodeExtracts(item)
+	if err != nil {
+		return nil, err
+	}
+
+	err = decodeAsserts(item)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Produced item: %s", meta)
+	return item, nil
+}
+
+func readMeta(file io.ReadSeeker, buf []byte, offset int, nread int) []byte {
+	// read meta
+	meta, rest, found := bytes.Cut(buf[offset:nread], []byte{10})
+	if !found {
+		panic(fmt.Sprintf("Meta information line did not contain the newline within %d bytes buffer: %s", nread, buf[:nread]))
+	}
+
+	// seek payload start
+	_, err := file.Seek(-int64(len(rest)), io.SeekCurrent)
+	if err != nil {
+		log.Warningf("Failed to seek payload start %d", -len(rest))
+		panic(err)
+	}
+	return meta
+}
+
+func readPayload(file io.ReadSeeker, item *PayloadItem, plen int) error {
+	// read payload
+	item.Payload = make([]byte, plen)
+	_, err := io.ReadFull(file, item.Payload)
+	return err
+}
+
+func decodeReplaces(item *PayloadItem) {
 	for _, idx := range item.ReplacesIdx {
 		item.Replaces = append(item.Replaces, item.StrIndex.Get(idx))
 	}
 	item.ReplacesIdx = []uint16{}
+}
 
+func decodeAsserts(item *PayloadItem) error {
+	for _, idx := range item.AssertsIdx {
+		s := item.StrIndex.Get(idx)
+		invert, sre, _ := strings.Cut(s, " ")
+
+		var re = &RegexpProxy{}
+		if r, ok := regexCache[sre]; ok {
+			re.Regexp = r
+		} else {
+			r, err := regexp.Compile(sre)
+			if err != nil {
+				return err
+			}
+			re.Regexp = r
+			regexCache[sre] = re.Regexp
+		}
+
+		item.Asserts = append(item.Asserts, &AssertItem{Invert: invert != "0", Re: re})
+	}
+	item.AssertsIdx = []uint16{}
+	return nil
+}
+
+func decodeExtracts(item *PayloadItem) error {
 	for _, idx := range item.RegexOutIdx {
 		s := item.StrIndex.Get(idx)
 		name, s, _ := strings.Cut(s, " ")
 		match, s, _ := strings.Cut(s, " ")
 		group, sre, _ := strings.Cut(s, " ")
 
-		var re *regexp.Regexp
+		var re = &RegexpProxy{}
 		if r, ok := regexCache[sre]; ok {
-			re = r
+			re.Regexp = r
 		} else {
-			re = regexp.MustCompile(sre)
-			regexCache[sre] = re
+			r, err := regexp.Compile(sre)
+			if err != nil {
+				return err
+			}
+			re.Regexp = r
+			regexCache[sre] = re.Regexp
 		}
 
 		g, _ := strconv.Atoi(group)
@@ -207,22 +331,7 @@ func readPayloadRecord(file io.ReadSeeker, buf []byte, index *StrIndex) (*Payloa
 		}
 	}
 	item.RegexOutIdx = []uint16{}
-
-	// seek payload start
-	o, err := file.Seek(-int64(len(rest)), 1)
-	_ = o
-	if err != nil {
-		panic(err)
-	}
-
-	// read payload
-	item.Payload = make([]byte, item.PayloadLen)
-	n, err := io.ReadFull(file, item.Payload)
-	_ = n
-	if err != nil {
-		panic(err)
-	}
-
-	log.Debugf("Produced item: %s", meta)
-	return item, nil
+	return nil
 }
+
+var pLenRe = regexp.MustCompile("\"plen\":\\s*(\\d+)")
