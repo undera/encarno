@@ -24,9 +24,9 @@ jobs:
           include: "cmd/encarno/main.go"
 
       - name: Generate build files
-        uses: crazy-max/ghaction-xgo@v2.0.0
+        uses: crazy-max/ghaction-xgo@v2.1.0
         with:
-          xgo_version: latest
+          xgo_version: v0.19.0
           go_version: 1.18
           dest: build
           pkg: "cmd/encarno"
@@ -39,11 +39,6 @@ jobs:
           buildmode: default
           buildvcs: false
           tags: ""
-      - name: Simplifying artifacts # Step to reduce a platform' substring overhead e.g darwin-10.16-amd64, windows-4.0-amd64.exe
-        run: |
-          mv build/${{ github.event.repository.name }}-darwin-*-amd64 build/${{ github.event.repository.name }}-darwin-amd64
-          mv build/${{ github.event.repository.name }}-darwin-*-arm64 build/${{ github.event.repository.name }}-darwin-arm64
-          mv build/${{ github.event.repository.name }}-windows-*-amd64.exe build/${{ github.event.repository.name }}-windows-amd64.exe
       - name: Release artifacts
         uses: ncipollo/release-action@v1.10.0
         with:
@@ -67,14 +62,14 @@ jobs:
         uses: jacobtomlinson/gha-find-replace@v2
         with:
           find: '"0.0"'
-          replace: ${{ github.ref_name }}
+          replace: '"${{ github.ref_name }}"'
           include: "taurus/encarno/__init__.py"
 
       - name: Inject version 2
         uses: jacobtomlinson/gha-find-replace@v2
         with:
           find: '"0.0"'
-          replace: ${{ github.ref_name }}
+          replace: '"${{ github.ref_name }}"'
           include: "taurus/setup.py"
 
       - name: Install deps
@@ -101,14 +96,14 @@ jobs:
         uses: jacobtomlinson/gha-find-replace@v2
         with:
           find: '"0.0"'
-          replace: ${{ github.ref_name }}
+          replace: '"${{ github.ref_name }}"'
           include: "taurus/encarno/__init__.py"
 
       - name: Inject version 2
         uses: jacobtomlinson/gha-find-replace@v2
         with:
           find: '"0.0"'
-          replace: ${{ github.ref_name }}
+          replace: '"${{ github.ref_name }}"'
           include: "taurus/setup.py"
 
       - name: Inject version 3
