@@ -383,7 +383,11 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 
 ## Changelog
 
-### 0.5 -- 25 jul 2022
+### 0.5.2 -- next
+- retry reading string index file, for the case it lags behind binary file
+
+
+### 0.5.1 -- 25 jul 2022
 - regular expression evaluation, extractions and assertions
 - make sure custom payload files work fine
 - add external payload indexed example

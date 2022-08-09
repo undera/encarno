@@ -355,7 +355,6 @@ func (o *BinaryOut) Close() {
 }
 
 func (o *BinaryOut) Push(item *OutputItem) {
-
 	if item.Error != nil && item.ErrorStrIdx == 0 {
 		item.ErrorStrIdx = item.strIndex.Idx(item.Error.Error())
 	}

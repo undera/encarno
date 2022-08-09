@@ -5,6 +5,7 @@ import os.path
 import platform
 import re
 import struct
+import time
 import traceback
 from json import JSONDecodeError
 from urllib.parse import urlencode, urlparse
@@ -640,11 +641,21 @@ class KPIReaderBinary(ResultsReader):
         return False
 
     def _get_strindex(self, idx):
-        if idx >= len(self.str_map):
+        tries = 0
+        while idx >= len(self.str_map):
+            tries += 1
             for line in self.str_file.get_lines(1024 * 1024):
                 if not line.endswith("\n"):
                     logging.warning("Partial line read. Report this to Encarno developers.")
                 self.str_map[len(self.str_map)] = line.rstrip()
+
+            if idx >= len(self.str_map):
+                if tries < 10:
+                    self.log.warning("String index %s is not present in %s, gonna retry it", idx, self.str_file.name)
+                    time.sleep(1)
+                else:
+                    self.log.error("String index %s is not present in %s even after retries", idx, self.str_file.name)
+                    return "INDEX_NOT_FOUND"
 
         return self.str_map[idx - 1]
 
