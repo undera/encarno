@@ -362,7 +362,7 @@ Special code 999 is used for network-level errors.
 
 It is possible to switch Encarno from default _binary+strings_ format of output file, into single human-readable LDSON file. It is done via special option:
 ```yaml
-module:
+modules:
   encarno:
     output-format: ldjson  # by default, it's "bin"
 ```
