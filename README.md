@@ -384,6 +384,7 @@ It is intentionally not fully-capable _load testing tool_, it is just _load gene
 ## Changelog
 
 ### 0.5.2 -- next
+- requests from URLs file have default empty label, to avoid garbaging reports with too many labels
 - retry reading string index file, for the case it lags behind binary file
 
 

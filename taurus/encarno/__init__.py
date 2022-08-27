@@ -510,7 +510,8 @@ class EncarnoFilesGenerator(object):
                 parts = line.split(" ")
 
                 req = {
-                    "url": parts[1 if len(parts) > 1 else 0]
+                    "url": parts[1 if len(parts) > 1 else 0],
+                    "label": "",
                 }
 
                 if len(parts) > 1:
