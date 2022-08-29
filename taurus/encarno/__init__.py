@@ -302,7 +302,7 @@ class EncarnoFilesGenerator(object):
 
             if self.input_strings:
                 with open(self.input_strings, 'w') as fp:
-                    fp.writelines(x + "\n" for x in str_list)
+                    fp.writelines(x + "\n" for x in str_list[1:])
 
         else:
             self.input_strings = self.engine.find_file(scenario.get("input-strings"))
@@ -310,7 +310,7 @@ class EncarnoFilesGenerator(object):
         return uses_regex
 
     def _generate_payload_inner(self, scenario):
-        str_list = []
+        str_list = [""]  # we always assume #0 is empty str, because encarno binary does
         all_consumes = set()
         all_extracts = set()
 
@@ -388,8 +388,8 @@ class EncarnoFilesGenerator(object):
 
         metadata = {
             "plen": len(tcp_payload.encode('utf-8')),
-            "a": str_list.index(host) + 1,
-            "l": str_list.index(request.label) + 1,
+            "a": str_list.index(host),
+            "l": str_list.index(request.label),
         }
 
         for val in consumes:
@@ -397,7 +397,7 @@ class EncarnoFilesGenerator(object):
                 str_list.append(val)
 
         if consumes:
-            metadata["r"] = [str_list.index(x) + 1 for x in consumes]
+            metadata["r"] = [str_list.index(x) for x in consumes]
 
         if ext_tpls:
             metadata["e"] = []
@@ -406,7 +406,7 @@ class EncarnoFilesGenerator(object):
                 if s_data not in str_list:
                     str_list.append(s_data)
 
-                metadata["e"].append(str_list.index(s_data) + 1)
+                metadata["e"].append(str_list.index(s_data))
 
         if asserts:
             metadata["c"] = []
@@ -415,7 +415,7 @@ class EncarnoFilesGenerator(object):
                 if item not in str_list:
                     str_list.append(item)
 
-                metadata["c"].append(str_list.index(item) + 1)
+                metadata["c"].append(str_list.index(item))
 
         return metadata
 
@@ -598,7 +598,7 @@ class KPIReaderBinary(ResultsReader):
         self.log = parent_logger.getChild(self.__class__.__name__)
         self.file = FileReader(filename=filename, file_opener=lambda x: open(x, 'rb'), parent_logger=self.log)
         self.str_file = FileReader(filename=str_filename, parent_logger=self.log)
-        self.str_map = {}
+        self.str_map = {0: ""}
         self.partial_buffer = bytes()
         self.health_reader = HealthReader(health_filename, parent_logger)
 
@@ -658,7 +658,7 @@ class KPIReaderBinary(ResultsReader):
                     self.log.error("String index %s is not present in %s even after retries", idx, self.str_file.name)
                     return "INDEX_NOT_FOUND"
 
-        return self.str_map[idx - 1]
+        return self.str_map[idx]
 
 
 class HealthReader:
