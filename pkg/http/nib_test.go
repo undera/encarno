@@ -2,11 +2,12 @@ package http
 
 import (
 	"encarno/pkg/core"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var hostname = "localhost:8070"
@@ -152,7 +153,7 @@ func TestTLSIssues(t *testing.T) {
 
 	item := Item{
 		inp: core.PayloadItem{
-			Address: "https://13.225.244.117",
+			Address: "https://3.160.132.27",
 			Payload: []byte("GET /optimus-storage/s/_next/static/chunks/80565.4e2f86f692555637.js HTTP/1.1\r\nHost: statics.otomoto.pl\r\nConnection: close\r\n\r\n"),
 		},
 	}
