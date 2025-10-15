@@ -79,7 +79,7 @@ jobs:
         run: cd taurus && python -m build && twine check dist/*
 
       - name: pypi-publish
-        uses: pypa/gh-action-pypi-publish@v1.5.0
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           packages_dir: taurus/dist
           user: __token__
