@@ -12,17 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: HTTP Server Action
-        uses: Eun/http-server-action@v1.0.3
+        uses: Eun/http-server-action@v1
         with:
           port: 8070
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
-          go-version: 1.18
+          go-version: 1.25
 
       - name: Build
         run: go build -v ./...
@@ -31,7 +31,7 @@ jobs:
         run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v1.0.2
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Build the Docker image
-        run: docker build . --file Dockerfile --tag encarne:$(date +%s)
+        run: docker build . --file Dockerfile --tag encarno:$(date +%s)

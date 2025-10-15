@@ -28,7 +28,7 @@ type WorkerConf struct {
 }
 
 type BaseWorkload struct {
-	Workers      []*Worker
+	Workers      []*Worker // TODO: sync.Pool ?
 	NibMaker     NibMaker
 	StartTime    time.Time
 	Output       *Output

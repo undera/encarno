@@ -107,7 +107,7 @@ func (i *OutputItem) Assert(asserts []*AssertItem) {
 	}
 }
 
-func (i *OutputItem) WriteBinary(fd io.Writer) {
+func (i *OutputItem) WriteBinary(fd io.Writer) { // FIXME: Short write panic happens here
 	endian := binary.LittleEndian
 	err := binary.Write(fd, endian, i.StartTS) // TODO: nano?
 	if err != nil {
